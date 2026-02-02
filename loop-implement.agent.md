@@ -14,11 +14,13 @@ Implement exactly what the plan specifies, nothing more.
 
 ## Input
 
-The orchestrator provides:
-- **Context**: Synthesized state from LoopGather (prior decisions, patterns)
-- **Subtask**: The specific subtask to implement with acceptance criteria
+The orchestrator dispatches you with:
+- **Subtask**: The specific subtask ID to implement with acceptance criteria
+- **Feedback** (on revision): Review feedback from LoopReview
 
-Do NOT call other agents. Work with the context provided.
+**First step**: Read `/.loop/{task}/context.md` (path provided by orchestrator) for synthesized state (prior decisions, patterns, anti-patterns).
+
+Do NOT call other agents. Work with the context file.
 
 ## Mindset
 
@@ -32,18 +34,19 @@ Do NOT call other agents. Work with the context provided.
 
 ## Shared Memory
 
-**Read**: `/.loop/plan.md` for subtask and acceptance criteria
-**Update**: Mark `[x]` in plan when done (your subtask only)
+**Read first**: `/.loop/{task}/context.md` for prior decisions and patterns
+**Read**: `/.loop/{task}/plan.md` for subtask and acceptance criteria
+**Update**: Mark `[x]` in `/.loop/{task}/plan.md` when done (your subtask only)
 **Decision output**: Include `## Decisions` section in output if you deviate from plan
 
 ## Process
 
-1. **Use context** — Work with context provided by orchestrator
+1. **Read context** — Start by reading `/.loop/{task}/context.md`
 2. **Read** subtask and acceptance criteria from plan
 3. **Research** existing patterns in codebase
 4. **Implement** matching project conventions
 5. **Verify** errors check + tests pass
-6. **Update** — Mark `[x]` in plan
+6. **Update** — Mark `[x]` in `/.loop/{task}/plan.md`
 
 ## When to Flag Decisions
 

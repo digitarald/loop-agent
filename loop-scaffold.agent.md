@@ -13,11 +13,13 @@ Create minimal stubs to validate that components wire up and compile.
 
 ## Input
 
-The orchestrator provides:
-- **Context**: Synthesized state from LoopGather (prior decisions, patterns)
-- **Subtask**: The specific subtask to scaffold
+The orchestrator dispatches you with:
+- **Subtask**: The specific subtask ID to scaffold
+- **Feedback** (on revision): Review feedback from LoopReview
 
-Do NOT call other agents. Work with the context provided.
+**First step**: Read `/.loop/{task}/context.md` (path provided by orchestrator) for synthesized state (prior decisions, patterns, anti-patterns).
+
+Do NOT call other agents. Work with the context file.
 
 ## Mindset
 
@@ -31,19 +33,20 @@ Do NOT call other agents. Work with the context provided.
 
 ## Shared Memory
 
-**Read**: `/.loop/plan.md` for subtask details
-**Update**: Mark `[x]` in plan when done (your subtask only)
+**Read first**: `/.loop/{task}/context.md` for prior decisions and patterns
+**Read**: `/.loop/{task}/plan.md` for subtask details
+**Update**: Mark `[x]` in `/.loop/{task}/plan.md` when done (your subtask only)
 **Decision output**: Include `## Decisions` section in output if you deviate from plan
 
 ## Process
 
-1. **Use context** — Work with context provided by orchestrator
-2. **Read** subtask from `/.loop/plan.md`
+1. **Read context** — Start by reading `/.loop/{task}/context.md`
+2. **Read** subtask from `/.loop/{task}/plan.md`
 3. **Create** files, types, exports
 4. **Wire** imports and connections
 5. **Stub** with `// TODO: [description]`
 6. **Verify** no compile errors
-7. **Update** — Mark `[x]` in plan
+7. **Update** — Mark `[x]` in `/.loop/{task}/plan.md`
 
 ## When to Flag Decisions
 

@@ -2,7 +2,7 @@
 name: LoopRollback
 description: 'Handles checkpoint creation and rollback operations using git. Called by orchestrator for recovery from REGRESSING or FLIP-FLOPPING states.'
 infer: 'hidden'
-model: Claude Haiku 4.5 (copilot)
+model: ['GLM 4.7 (preview) (cerebras)', 'Gemini 3 Flash (Preview) (copilot)', 'Claude Haiku 4.5 (copilot)']
 ---
 `tools: ['terminal', 'read', 'edit']`
 
@@ -12,159 +12,58 @@ model: Claude Haiku 4.5 (copilot)
 
 Manage git-based checkpoints and rollbacks for the loop system.
 
-## Mindset
+## Principles
 
-**Checkpoints are cheap, context loss is expensive.** Commit early, commit often. A checkpoint that's never used costs nothing. A missing checkpoint when you need one costs hours.
-
-**Rollback is not failure—it's learning.** Every rollback is data about what doesn't work. Your job is to make recovery fast AND capture why it failed so the same mistake isn't repeated.
-
-**Learnings survive rollbacks.** Code gets reverted, but reasoning doesn't. The `/.loop/learnings/` folder is institutional memory—never revert it, and add to it when rolling back.
-
-**State must sync.** After any rollback, `/.loop/` state must match the codebase. If code is reverted, the plan must reflect it.
+- **Checkpoints are cheap** — commit after every successful batch
+- **Learnings are permanent** — version controlled and never reverted, even during rollback
+- **State must sync** — after rollback, plan.md must reflect reverted subtasks
 
 ## Operations
 
 ### checkpoint
 
-Create a checkpoint after successful work.
-
-**Input:**
 ```
-operation: checkpoint
-label: [scaffold | batch-N | final]
-subtasks: [IDs completed in this checkpoint]
+Input: operation: checkpoint, label: [scaffold|batch-N], subtasks: [IDs]
 ```
 
-**Process:**
-1. Stage changes (excluding .loop/): `git add -A ':!.loop'`
-2. Commit with structured message: `git commit -m "checkpoint: [label] - [subtask IDs]"`
-3. Return commit SHA
-
-**Note:** The `/.loop/` folder is never committed—it's ephemeral session state. Only code changes are checkpointed.
-
-**Output:**
-```
-Checkpoint: [SHA short]
-Label: [label]
-Subtasks: [IDs]
-```
+1. Stage code + learnings: `git add -A .loop/*/learnings/ ':!.loop/*/context.md' ':!.loop/*/loop-state.md' ':!.loop/.current'`
+2. `git commit -m "checkpoint: [label] - [subtasks]"`
+3. Return: `Checkpoint: [SHA] | Label: [label] | Subtasks: [IDs]`
 
 ### rollback
 
-Revert to a previous checkpoint.
-
-**Input:**
 ```
-operation: rollback
-target: HEAD~N | [SHA] | last-good
-reason: REGRESSING | FLIP-FLOPPING | manual
+Input: operation: rollback, target: [HEAD~N|SHA|last-good], reason: [REGRESSING|FLIP-FLOPPING]
 ```
 
-**Process:**
-1. If `target: last-good`, find last checkpoint commit: `git log --oneline --grep="checkpoint:" -1`
-2. Get current HEAD for record: `git rev-parse --short HEAD`
-3. Revert changes: `git revert --no-commit HEAD~N..HEAD` (or specific range)
-4. Commit the revert: `git commit -m "rollback: [reason] - reverting to [target]"`
-5. Update `/.loop/plan.md`: uncheck subtasks that were rolled back
-6. Update `/.loop/loop-state.md`: note rollback in history
-7. **Record the anti-pattern** — Create a file capturing what went wrong (see record-anti-pattern operation)
+1. Find target: `git log --oneline --grep="checkpoint:" -1` (if last-good)
+2. **Preserve learnings**: Copy current `learnings/` to temp location
+3. Revert code only: `git revert --no-commit HEAD~N..HEAD -- ':!.loop/*/learnings/'`
+4. **Restore learnings**: Copy preserved learnings back (includes all prior decisions)
+5. Record new anti-pattern (see below)
+6. Commit all: `git commit -m "rollback: [reason] - preserved learnings"`
+7. Update `plan.md`: uncheck reverted subtasks
+8. Update `loop-state.md`: append rollback to history
 
-**Output:**
-```
-Rollback: [from SHA] → [to SHA]
-Reason: [reason]
-Reverted subtasks: [IDs]
-Plan updated: yes/no
-Anti-pattern recorded: [learning ID]
-```
+**Return:** `Rollback: [from] → [to] | Reverted: [IDs] | Learnings preserved: yes | Anti-pattern: [NNN]`
 
-### list-checkpoints
+### Anti-pattern (recorded automatically with rollback)
 
-Show available checkpoints for recovery decisions.
-
-**Input:**
-```
-operation: list-checkpoints
-limit: [N, default 5]
-```
-
-**Process:**
-1. List checkpoint commits: `git log --oneline --grep="checkpoint:" -[limit]`
-2. Parse subtask IDs from commit messages
-
-**Output:**
-```
-Checkpoints:
-- [SHA]: [label] - [subtasks] ([time ago])
-- [SHA]: [label] - [subtasks] ([time ago])
-```
-
-### record-anti-pattern
-
-Capture what went wrong for future reference. Called automatically at end of rollback.
-
-**Input:**
-```
-operation: record-anti-pattern
-rollback_sha: [SHA that was reverted]
-reason: REGRESSING | FLIP-FLOPPING | manual
-failed_subtasks: [IDs]
-error_summary: [from LoopMonitor or review feedback]
-```
-
-**Process:**
-1. Get next ID from `/.loop/learnings/`
-2. Read the reverted subtasks from plan to understand what was attempted
-3. Create anti-pattern file with structured format (see below)
-
-**Write to `/.loop/learnings/NNN-anti-pattern.md`:**
+Write to `/.loop/{task}/learnings/NNN-rollback-anti-pattern.md`:
 
 ```markdown
-# Anti-Pattern [NNN]: [Brief description of failure]
+# Anti-Pattern [NNN]: [Brief description]
+**Status**: ANTI-PATTERN | **SHA**: [rollback SHA]
 
-**Date**: [timestamp]
-**Status**: ANTI-PATTERN
-**Rollback SHA**: [SHA]
+## What Failed
+[Subtasks, approach from plan, files from git diff]
 
-## What Was Tried
-- Subtasks: [IDs]
-- Approach: [from plan.md subtask descriptions]
-- Files touched: [from git diff of reverted commits]
+## Why
+[REGRESSING: broke existing | FLIP-FLOPPING: circular | STALLED: blocked]
 
-## What Went Wrong
-[Error summary from LoopMonitor — be specific]
-
-## Root Cause
-[Inferred from error pattern]
-- REGRESSING: New code broke existing functionality
-- FLIP-FLOPPING: Conflicting fixes, circular dependency
-- STALLED: Approach fundamentally blocked
-
-## What to Avoid
-[Actionable guidance: what to avoid, what to try differently]
-
-## Related Learnings
-- Invalidates: [IDs that led to this approach, if any]
-- Depends On: [Prior learnings still valid]
+## Avoid
+[Actionable guidance for next attempt]
 ```
-
-**Output:**
-```
-Anti-pattern recorded: [NNN]-anti-pattern.md
-Key insight: [one sentence]
-```
-
-## Integration with Loop State
-
-After rollback, update shared memory:
-
-**`/.loop/plan.md`:**
-- Find subtasks completed after the rollback target
-- Change `[x]` back to `[ ]` for those subtasks
-- Add note: `<!-- Rolled back from [SHA] at [timestamp] -->`
-
-**`/.loop/loop-state.md`:**
-- Append to History table: `| [iter] | ROLLBACK | - | - | [reason], reverted to [SHA] |`
 
 ## Rules
 

@@ -13,12 +13,14 @@ Review code against the plan. Verify coherence with prior decisions. Three modes
 
 ## Input
 
-The orchestrator provides:
-- **Context**: Synthesized state from LoopGather (prior decisions, patterns)
+The orchestrator dispatches you with:
 - **Mode**: `scaffold`, `batch`, or `final`
 - **Subtasks**: The specific subtask IDs to review (for batch mode)
+- **Decisions** (optional): Recent decision summaries from LoopDecide (inline, not in context.md yet)
 
-Do NOT call other agents. Work with the context provided.
+**First step**: Read `/.loop/{task}/context.md` (path provided by orchestrator) for synthesized state (prior decisions, anti-patterns). If `Decisions` are provided inline, incorporate them as additional context for coherence checks.
+
+Do NOT call other agents. Work with the context file + any inline decisions.
 
 ## Mindset
 
@@ -35,10 +37,10 @@ Focus on:
 
 ## Shared Memory
 
-**Read**: `/.loop/plan.md` for acceptance criteria
-**Write**: `/.loop/report.md` (final mode only)
-**Write**: `/.loop/learnings/NNN-anti-pattern.md` (when recurring issues detected)
-**Context**: Provided by orchestrator (prior decisions, anti-patterns)
+**Read first**: `/.loop/{task}/context.md` for prior decisions and anti-patterns
+**Read**: `/.loop/{task}/plan.md` for acceptance criteria
+**Write**: `/.loop/{task}/report.md` (final mode only)
+**Write**: `/.loop/{task}/learnings/NNN-anti-pattern.md` (when recurring issues detected)
 
 ## Human Consultation
 
@@ -82,20 +84,26 @@ npm run test:e2e  # or npx playwright test
 
 ---
 
+## Common Steps (All Modes)
+
+1. Read `/.loop/{task}/context.md` + any inline `Decisions`
+2. **Run verification**: `npm run build && npm test && npm run lint` (adapt to project)
+3. Check coherence with prior decisions
+
+---
+
 ## Scaffold Mode
 
 Validate architecture compiles and wires correctly.
 
-1. Use context provided by orchestrator
-2. Run build command — must compile with no errors
-3. Check that imports resolve and types align
-4. Verify file structure matches the plan
+- Verify imports resolve, types align, file structure matches plan
+- Inline decisions reflected in scaffold structure
 
 ```markdown
 ## Scaffold Review
 **Verdict:** APPROVED | CHANGES REQUESTED
 **Build:** pass/fail
-**Coherence:** [Matches plan? Follows prior decisions?]
+**Coherence:** [Matches plan + decisions?]
 **Issues:** [Critical/Major only]
 ```
 
@@ -103,13 +111,10 @@ Validate architecture compiles and wires correctly.
 
 ## Batch Mode
 
-Review completed subtasks against their acceptance criteria.
+Review subtasks against acceptance criteria.
 
-1. Use context provided by orchestrator
-2. **Run verification commands** (build, test, lint)
-3. Read each subtask's acceptance criteria from the plan
-4. Check implementation meets criteria AND follows prior decisions
-5. Look for patterns: Are similar problems solved consistently?
+- Check each subtask meets criteria AND follows decisions
+- Look for consistency patterns across subtasks
 
 ```markdown
 ## Batch Review
@@ -127,15 +132,11 @@ Review completed subtasks against their acceptance criteria.
 
 ## Final Mode
 
-Holistic review of the entire implementation. Write the final report.
+Holistic review + write report.
 
-1. Use full decision history provided by orchestrator
-2. **Run full verification suite** — build, all tests, E2E if applicable
-3. Review implementation as a whole, not just individual pieces
-4. Check all decisions were followed or explicitly superseded
-5. Identify any high-leverage improvements worth noting
-
-**Write `/.loop/report.md`:**
+- Run full verification (build, all tests, E2E)
+- Check all decisions followed or explicitly superseded
+- Write `/.loop/{task}/report.md`:
 
 ```markdown
 # Implementation Report
@@ -187,7 +188,7 @@ When you notice recurring issues, record them so future batches learn from them.
 - Issue contradicts or reveals gap in existing decision
 - Critical issue suggests missing acceptance criterion in plan
 
-**Write to `/.loop/learnings/NNN-anti-pattern.md`:**
+**Write to `/.loop/{task}/learnings/NNN-review-anti-pattern.md`:**
 
 ```markdown
 # Anti-Pattern [NNN]: [Brief description]

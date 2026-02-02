@@ -25,16 +25,17 @@ Loop uses a **flat, single-level hierarchy**: the orchestrator calls subagents, 
 flowchart TB
     User([User]) --> Loop[Loop Orchestrator]
     
-    Loop --> LG[LoopGather<br/>Context Synthesizer]
-    Loop --> LM[LoopMonitor<br/>Stall Detector]
-    Loop --> LD[LoopDecide<br/>Decision Recorder]
+    Loop --> LG[LoopGather]
+    Loop --> LM[LoopMonitor]
+    Loop --> LD[LoopDecide]
     
-    Loop --> LP[LoopPlan<br/>Planner]
-    Loop --> LPR[LoopPlanReview<br/>Plan Reviewer]
+    Loop --> LP[LoopPlan]
+    Loop --> LPR[LoopPlanReview]
     
-    Loop --> LS[LoopScaffold<br/>Scaffolder]
-    Loop --> LI[LoopImplement<br/>Implementer]
-    Loop --> LR[LoopReview<br/>Code Reviewer]
+    Loop --> LS[LoopScaffold]
+    Loop --> LI[LoopImplement]
+    Loop --> LR[LoopReview]
+    Loop --> LRB[LoopRollback]
     
     LG -.context.-> LP
     LG -.context.-> LPR
@@ -47,6 +48,7 @@ flowchart TB
     LI -.decisions.-> LD
     
     LI -.results.-> LM
+    LM -.recovery.-> LRB
     
     style Loop fill:#e1f5ff
     style LG fill:#fff4e1
@@ -56,20 +58,29 @@ flowchart TB
 
 ### Shared Memory Structure
 
-All agents read/write to `/.loop/`:
+Each task gets its own folder under `/.loop/` with an auto-incremented, human-readable ID:
 
 ```
 /.loop/
-├── plan.md              # Task breakdown + progress checkboxes
-├── loop-state.md        # Meta-loop status (iteration, health)
-├── report.md            # Final implementation summary
-└── decisions/           # Reasoning trail with dependencies
-    ├── 001-auth-jwt.md
-    ├── 002-api-rest.md
-    └── ...
+├── .current              # Active task ID (e.g., "001-add-user-auth")
+├── 001-add-user-auth/    # First task
+│   ├── context.md        # Synthesized context for agents
+│   ├── plan.md           # Task breakdown + progress checkboxes
+│   ├── loop-state.md     # Meta-loop status (iteration, health)
+│   ├── report.md         # Final implementation summary
+│   └── learnings/        # Reasoning trail with dependencies
+│       ├── 001-auth-jwt.md
+│       ├── 002-api-rest.md
+│       └── 003-anti-pattern.md
+├── 002-fix-payment-bug/  # Second task
+│   └── ...
 ```
 
-**Key principle**: Agents write to files, orchestrator reads nothing. Context synthesis is delegated to `LoopGather`.
+**Task ID format**: `NNN-slug` where:
+- `NNN` = 3-digit zero-padded sequential number (001, 002, ...)
+- `slug` = kebab-case summary from request (max 40 chars, 3-5 keywords)
+
+**Key principle**: Agents write to files, orchestrator reads nothing. Context synthesis is delegated to `LoopGather`. The `learnings/` folder is version controlled to preserve reasoning across sessions.
 
 ---
 
@@ -84,26 +95,30 @@ sequenceDiagram
     participant LoopPlan
     participant LoopDecide
     participant LoopPlanReview
-    participant Todo[Todo Tool]
+    participant Todo as Todo Tool
     
     Loop->>LoopGather: Get current state
-    LoopGather-->>Loop: status, prior decisions, context
+    LoopGather-->>Loop: phase, ready_subtasks (writes context.md)
     
     Loop->>LoopPlan: Plan with context
-    LoopPlan-->>Loop: plan.md with Decisions section
+    LoopPlan-->>Loop: DRAFT, NEEDS_CLARIFICATION, or plan.md
+    
+    alt NEEDS_CLARIFICATION
+        Note over Loop: LoopPlan returns Open Questions
+        Loop->>Loop: askQuestions to user
+        Loop->>LoopPlan: Re-plan with Clarifications
+    end
     
     alt Has Decisions
         Loop->>LoopDecide: Record decisions
-        LoopDecide-->>Loop: decisions files created
-        Loop->>LoopGather: Get updated context
-        LoopGather-->>Loop: context with new decisions
+        LoopDecide-->>Loop: decision summaries (inline)
     end
     
-    Loop->>LoopPlanReview: Review plan with context
+    Loop->>LoopPlanReview: Review plan + decisions (inline)
     LoopPlanReview-->>Loop: APPROVED or NEEDS REVISION
     
     alt NEEDS REVISION
-        Loop->>LoopPlan: Revise with feedback
+        Loop->>LoopPlan: Revise with feedback (no refresh)
     else APPROVED
         Loop->>Todo: Create todos for all subtasks
         Todo-->>Loop: Todos created (all not-started)
@@ -111,10 +126,10 @@ sequenceDiagram
 ```
 
 **What's happening:**
-- `LoopGather` synthesizes prior decisions so new plans don't contradict old ones
-- `LoopPlan` creates task breakdown, flags non-obvious choices
-- `LoopDecide` records reasoning (not just choices) to `/.loop/decisions/`
-- `LoopPlanReview` validates coherence with prior decisions, flags contradictions as Critical
+- `LoopGather` synthesizes prior decisions so new plans don't contradict old ones (called once at start)
+- `LoopPlan` creates task breakdown, flags non-obvious choices; returns `NEEDS_CLARIFICATION` with Open Questions if user input is required
+- `LoopDecide` records reasoning and returns **inline summaries** to orchestrator
+- `LoopPlanReview` receives decisions inline—no context refresh needed between plan and review
 - **Todo tracking** creates visibility for all subtasks in VS Code UI
 
 ---
@@ -124,11 +139,11 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant Loop
-    participant Todo[Todo Tool]
+    participant Todo as Todo Tool
     participant LoopGather
-    participant LI1[LoopImplement<br/>Subtask 1.1]
-    participant LI2[LoopImplement<br/>Subtask 1.3]
-    participant LI3[LoopImplement<br/>Subtask 2.2]
+    participant LI1 as LoopImplement 1.1
+    participant LI2 as LoopImplement 1.3
+    participant LI3 as LoopImplement 2.2
     participant LoopDecide
     participant LoopReview
     participant LoopMonitor
@@ -189,8 +204,15 @@ sequenceDiagram
 | Pattern | Detection | Response |
 |---------|-----------|----------|
 | **STALLED** | Same error 3x or 3 consecutive failures | Re-gather context, revise approach |
-| **REGRESSING** | Pass rate drops 2 batches in a row | Rollback to last-good state |
-| **OSCILLATING** | Same subtasks flip-flopping 2+ iterations | Escalate to human via `vscode/askQuestions` |
+| **BLOCKED** | Subtask returns BLOCKED status (external dependency, permission, or missing info) | Escalate to human immediately via `vscode/askQuestions` with blocker details |
+| **REGRESSING** | Pass rate drops 2 batches in a row | `LoopRollback` to last-good checkpoint |
+| **FLIP-FLOPPING** | Same subtasks oscillating 2+ iterations | `LoopRollback` + escalate to human via `vscode/askQuestions` |
+
+**Checkpoint & Rollback Protocol:**
+- `LoopRollback` creates checkpoints after scaffold and each implementation batch
+- On REGRESSING/OSCILLATING, orchestrator calls `LoopRollback` to revert to last-good state
+- Every rollback records an **anti-pattern** in `/.loop/learnings/NNN-anti-pattern.md`
+- Anti-patterns capture what went wrong so `LoopGather` can prevent repeat failures
 
 After 2 failed recovery attempts, escalates to user with full context.
 
@@ -225,7 +247,7 @@ The orchestrator **never reads files directly**:
 
 ```mermaid
 flowchart LR
-    A[Loop calls LoopGather] --> B[LoopGather reads /.loop/]
+    A[Loop calls LoopGather] --> B["LoopGather reads /.loop/task-folder/"]
     B --> C[LoopGather returns context summary]
     C --> D[Loop passes context to LoopPlan]
     
@@ -255,11 +277,11 @@ LoopGather → ready_subtasks: [1.1, 1.3, 2.2]
 [PARALLEL] LoopImplement(2.2) → output3
 [WAIT ALL]
 
-[PARALLEL] LoopDecide(decisions from output1)
-[PARALLEL] LoopDecide(decisions from output2)
+[PARALLEL] LoopDecide(decisions from output1) → summaries1
+[PARALLEL] LoopDecide(decisions from output2) → summaries2
 [WAIT ALL]
 
-LoopReview batch → verdicts
+LoopReview batch + decisions:[summaries] → verdicts
 📋 Mark approved subtasks completed
 LoopMonitor → status
 ```
@@ -269,10 +291,12 @@ LoopMonitor → status
 - Multiple `LoopDecide` calls (independent decisions)
 
 **Sequential operations (shared state):**
-- `LoopGather` — reads shared state
+- `LoopGather` — reads shared state from active task folder
 - `LoopMonitor` — needs all results
-- `LoopReview` — needs all implementations
+- `LoopReview` — needs all implementations + inline decision summaries
 - **Todo updates** — coordinated status tracking
+
+**No refresh between batches:** Decisions flow inline to LoopReview. LoopGather is only called at start of each new batch, not after LoopDecide.
 
 ---
 
@@ -302,15 +326,16 @@ This lets users see orchestrator progress without reading log files or memory st
 
 | Agent | Role | Tools | Reads | Writes |
 |-------|------|-------|-------|--------|
-| **Loop** | Orchestrator | agent, edit, askQuestions, todo | Nothing (delegates to LoopGather) | loop-state.md (init only) |
-| **LoopGather** | Context synthesizer | read, search | plan.md, decisions/* | Nothing (returns context) |
-| **LoopMonitor** | Stall detector | read, edit | loop-state.md | loop-state.md |
-| **LoopDecide** | Decision recorder | read, edit | decisions/* (to get next ID) | decisions/NNN-*.md |
-| **LoopPlan** | Planner | read, search, edit | codebase | plan.md |
-| **LoopPlanReview** | Plan reviewer | read, search, askQuestions | plan.md | Nothing (returns verdict) |
-| **LoopScaffold** | Scaffolder | all (code-authoring) | plan.md, codebase | plan.md (checkboxes), code files |
-| **LoopImplement** | Implementer | all (code-authoring) | plan.md, codebase | plan.md (checkboxes), code files |
-| **LoopReview** | Code reviewer | execute, read, search, edit, askQuestions | plan.md, codebase | report.md (final mode) |
+| **Loop** | Orchestrator | agent, edit, askQuestions, todo | Nothing (delegates to LoopGather) | {task}/loop-state.md (init only), .current |
+| **LoopGather** | Context synthesizer | read, search | .current, {task}/plan.md, {task}/learnings/* | {task}/context.md |
+| **LoopMonitor** | Stall detector | read, edit | {task}/loop-state.md | {task}/loop-state.md |
+| **LoopDecide** | Decision recorder | read, edit | {task}/learnings/* (to get next ID) | {task}/learnings/NNN-*.md |
+| **LoopPlan** | Planner | read, search, edit | codebase, {task}/context.md | {task}/plan.md |
+| **LoopPlanReview** | Plan reviewer | read, search, askQuestions | {task}/plan.md, {task}/context.md | Nothing (returns verdict) |
+| **LoopScaffold** | Scaffolder | all (code-authoring) | {task}/plan.md, {task}/context.md, codebase | {task}/plan.md (checkboxes), code files |
+| **LoopImplement** | Implementer | all (code-authoring) | {task}/plan.md, {task}/context.md, codebase | {task}/plan.md (checkboxes), code files |
+| **LoopReview** | Code reviewer | execute, read, search, edit, askQuestions | {task}/plan.md, {task}/context.md, codebase | {task}/report.md (final mode), {task}/learnings/*.md (anti-patterns) |
+| **LoopRollback** | Checkpoint/recovery | terminal, read, edit | git history, {task}/plan.md | {task}/learnings/*.md, {task}/plan.md |
 
 All subagents (`infer: 'hidden'`) are invoked only by the orchestrator. Only `Loop` is user-facing (`infer: 'user'`).
 
@@ -339,16 +364,22 @@ Build a REST API with JWT authentication
 ```
 
 The orchestrator will:
-1. Initialize `/.loop/` structure
-2. Call `LoopGather` to check for existing state
-3. Delegate to `LoopPlan` → `LoopPlanReview`
-4. **Create todo items** for all subtasks (tracked in VS Code UI throughout execution)
-5. Scaffold architecture with `LoopScaffold`
-6. Implement in parallel batches with `LoopImplement` (todos update: in-progress → completed)
-7. Monitor for stalls with `LoopMonitor`
-8. Generate final report with `LoopReview`
+1. Initialize `/.loop/NNN-slug/` structure for the new task
+2. Write task ID to `/.loop/.current`
+3. Call `LoopGather` to check for existing state
+4. Delegate to `LoopPlan` → `LoopPlanReview`
+5. **Create todo items** for all subtasks (tracked in VS Code UI throughout execution)
+6. Scaffold architecture with `LoopScaffold`
+7. Implement in parallel batches with `LoopImplement` (todos update: in-progress → completed)
+8. Monitor for stalls with `LoopMonitor`
+9. Generate final report with `LoopReview`
 
-All reasoning is preserved in `/.loop/decisions/` for future reference.
+All reasoning is preserved in `/.loop/{task}/learnings/` for future reference.
+
+### Task Management
+
+**Switch tasks:** Say "resume task 001-add-user-auth" or "switch to task 002"
+**List tasks:** Say "list tasks" to see all task folders with their status
 
 ---
 
