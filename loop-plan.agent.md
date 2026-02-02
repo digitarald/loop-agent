@@ -1,9 +1,9 @@
 ---
 name: LoopPlan
 description: 'Analyzes requirements and generates structured implementation plans with task breakdown. Writes to shared /.loop/ folder.'
-infer: 'hidden'
+user-invokable: false
+tools: ['read', 'search', 'edit', 'github/web_search']
 ---
-`tools: ['read', 'search', 'edit']`
 
 # Planning Agent
 

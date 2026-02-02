@@ -1,9 +1,8 @@
 ---
 name: LoopScaffold
 description: 'Creates minimal viable implementations to validate architecture before full development. Reads from shared /.loop/ folder.'
-infer: 'hidden'
+user-invokable: false
 ---
-`tools: all (code-authoring agent)`
 
 # Scaffold Agent
 

@@ -103,49 +103,49 @@ This replaces file-based state tracking—the orchestrator infers context from t
 ```mermaid
 sequenceDiagram
     participant User
-    participant Loop
+    participant Orch as Loop Orchestrator
     participant LoopGather
     participant LoopPlan
     participant LoopDecide
     participant LoopPlanReview
     participant Todo as Todo Tool
     
-    User->>Loop: Request (may include task hint)
+    User->>Orch: Request (may include task hint)
     
     alt Task hint found
-        Loop->>Loop: Resolve to /.loop/NNN-slug/
+        Orch->>Orch: Resolve to /.loop/NNN-slug/
     else No match or ambiguous
-        Loop->>User: List tasks, ask which to continue
-        User->>Loop: Pick task or describe new
+        Orch->>User: List tasks, ask which to continue
+        User->>Orch: Pick task or describe new
     else New task
-        Loop->>Loop: Create /.loop/NNN-slug/
+        Orch->>Orch: Create /.loop/NNN-slug/
     end
     
-    Loop->>LoopGather: Get current state (task path)
-    LoopGather-->>Loop: phase, ready_subtasks (writes context.md)
+    Orch->>LoopGather: Get current state (task path)
+    LoopGather-->>Orch: phase, ready_subtasks (writes context.md)
     
-    Loop->>LoopPlan: Plan with context
-    LoopPlan-->>Loop: DRAFT, NEEDS_CLARIFICATION, or plan.md
+    Orch->>LoopPlan: Plan with context
+    LoopPlan-->>Orch: DRAFT, NEEDS_CLARIFICATION, or plan.md
     
     alt NEEDS_CLARIFICATION
-        Note over Loop: LoopPlan returns Open Questions
-        Loop->>Loop: askQuestions to user
-        Loop->>LoopPlan: Re-plan with Clarifications
+        Note over Orch: LoopPlan returns Open Questions
+        Orch->>Orch: askQuestions to user
+        Orch->>LoopPlan: Re-plan with Clarifications
     end
     
     alt Has Decisions
-        Loop->>LoopDecide: Record decisions
-        LoopDecide-->>Loop: decision summaries (inline)
+        Orch->>LoopDecide: Record decisions
+        LoopDecide-->>Orch: decision summaries (inline)
     end
     
-    Loop->>LoopPlanReview: Review plan + decisions (inline)
-    LoopPlanReview-->>Loop: APPROVED or NEEDS REVISION
+    Orch->>LoopPlanReview: Review plan + decisions (inline)
+    LoopPlanReview-->>Orch: APPROVED or NEEDS REVISION
     
     alt NEEDS REVISION
-        Loop->>LoopPlan: Revise with feedback (no refresh)
+        Orch->>LoopPlan: Revise with feedback (no refresh)
     else APPROVED
-        Loop->>Todo: Create todos for all subtasks
-        Todo-->>Loop: Todos created (all not-started)
+        Orch->>Todo: Create todos for all subtasks
+        Todo-->>Orch: Todos created (all not-started)
     end
 ```
 
@@ -162,7 +162,7 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
-    participant Loop
+    participant Orch as Loop Orchestrator
     participant Todo as Todo Tool
     participant LoopGather
     participant LI1 as LoopImplement 1.1
@@ -172,39 +172,39 @@ sequenceDiagram
     participant LoopReview
     participant LoopMonitor
     
-    Loop->>LoopGather: Get ready subtasks
-    LoopGather-->>Loop: context and ready_subtasks: [1.1, 1.3, 2.2]
+    Orch->>LoopGather: Get ready subtasks
+    LoopGather-->>Orch: context and ready_subtasks: [1.1, 1.3, 2.2]
     
-    Loop->>Todo: Mark subtasks in-progress
+    Orch->>Todo: Mark subtasks in-progress
     
     par Parallel Implementation
-        Loop->>LI1: Implement with context
-        Loop->>LI2: Implement with context
-        Loop->>LI3: Implement with context
+        Orch->>LI1: Implement with context
+        Orch->>LI2: Implement with context
+        Orch->>LI3: Implement with context
     end
     
-    LI1-->>Loop: Output (may include Decisions)
-    LI2-->>Loop: Output (may include Decisions)
-    LI3-->>Loop: Output
+    LI1-->>Orch: Output (may include Decisions)
+    LI2-->>Orch: Output (may include Decisions)
+    LI3-->>Orch: Output
     
     par Parallel Decision Recording
-        Loop->>LoopDecide: Record decisions from 1.1
-        Loop->>LoopDecide: Record decisions from 1.3
+        Orch->>LoopDecide: Record decisions from 1.1
+        Orch->>LoopDecide: Record decisions from 1.3
     end
     
-    LoopDecide-->>Loop: All decisions recorded
+    LoopDecide-->>Orch: All decisions recorded
     
-    Loop->>LoopReview: Review batch [1.1, 1.3, 2.2]
-    LoopReview-->>Loop: Verdicts (APPROVED: 1.1, 1.3 | CHANGES: 2.2)
+    Orch->>LoopReview: Review batch [1.1, 1.3, 2.2]
+    LoopReview-->>Orch: Verdicts (APPROVED: 1.1, 1.3 | CHANGES: 2.2)
     
-    Loop->>Todo: Mark approved subtasks completed
+    Orch->>Todo: Mark approved subtasks completed
     
-    Loop->>LoopMonitor: Batch results
-    LoopMonitor-->>Loop: Status PROGRESSING
+    Orch->>LoopMonitor: Batch results
+    LoopMonitor-->>Orch: Status PROGRESSING
     
     alt STALLED
-        Loop->>LoopGather: Fresh context
-        Loop->>Loop: Change approach or escalate
+        Orch->>LoopGather: Fresh context
+        Orch->>Orch: Change approach or escalate
     end
 ```
 
@@ -271,9 +271,9 @@ The orchestrator **never reads files directly**:
 
 ```mermaid
 flowchart LR
-    A[Loop calls LoopGather] --> B["LoopGather reads /.loop/task-folder/"]
+    A[Orchestrator calls LoopGather] --> B["LoopGather reads /.loop/task-folder/"]
     B --> C[LoopGather returns context summary]
-    C --> D[Loop passes context to LoopPlan]
+    C --> D[Orchestrator passes context to LoopPlan]
     
     style A fill:#e1f5ff
     style B fill:#fff4e1
@@ -351,17 +351,17 @@ This lets users see orchestrator progress without reading log files or memory st
 | Agent | Role | Tools | Reads | Writes |
 |-------|------|-------|-------|--------|
 | **Loop** | Orchestrator | agent, edit, askQuestions, todo | plan.md first line (for task list status) | {task}/loop-state.md (init only) |
-| **LoopGather** | Context synthesizer | read, search | {task}/plan.md, {task}/learnings/* | {task}/context.md |
-| **LoopMonitor** | Stall detector | read, edit | {task}/loop-state.md | {task}/loop-state.md |
+| **LoopGather** | Context synthesizer | read, edit, search, memory | {task}/plan.md, {task}/learnings/* | {task}/context.md |
+| **LoopMonitor** | Stall detector | search, read, edit | {task}/loop-state.md | {task}/loop-state.md |
 | **LoopDecide** | Decision recorder | read, edit | {task}/learnings/* (to get next ID) | {task}/learnings/NNN-*.md |
-| **LoopPlan** | Planner | read, search, edit | codebase, {task}/context.md | {task}/plan.md |
-| **LoopPlanReview** | Plan reviewer | read, search, askQuestions | {task}/plan.md, {task}/context.md | Nothing (returns verdict) |
-| **LoopScaffold** | Scaffolder | all (code-authoring) | {task}/plan.md, {task}/context.md, codebase | {task}/plan.md (checkboxes), code files |
-| **LoopImplement** | Implementer | all (code-authoring) | {task}/plan.md, {task}/context.md, codebase | {task}/plan.md (checkboxes), code files |
-| **LoopReview** | Code reviewer | execute, read, search, edit, askQuestions | {task}/plan.md, {task}/context.md, codebase | {task}/report.md (final mode), {task}/learnings/*.md (anti-patterns) |
-| **LoopRollback** | Checkpoint/recovery | terminal, read, edit | git history, {task}/plan.md | {task}/learnings/*.md, {task}/plan.md |
+| **LoopPlan** | Planner | read, search, edit, github/web_search | codebase, {task}/context.md | {task}/plan.md |
+| **LoopPlanReview** | Plan reviewer | read, edit, search, github/web_search | {task}/plan.md, {task}/context.md | Nothing (returns verdict) |
+| **LoopScaffold** | Scaffolder | all | {task}/plan.md, {task}/context.md, codebase | {task}/plan.md (checkboxes), code files |
+| **LoopImplement** | Implementer | all | {task}/plan.md, {task}/context.md, codebase | {task}/plan.md (checkboxes), code files |
+| **LoopReview** | Code reviewer | all | {task}/plan.md, {task}/context.md, codebase | {task}/report.md (final mode), {task}/learnings/*.md (anti-patterns) |
+| **LoopRollback** | Checkpoint/recovery | execute, read, edit | git history, {task}/plan.md | {task}/learnings/*.md, {task}/plan.md |
 
-All subagents (`infer: 'hidden'`) are invoked only by the orchestrator. Only `Loop` is user-facing (`infer: 'user'`).
+All subagents (`user-invokable: false`) are invoked only by the orchestrator. Only `Loop` is user-facing (`disable-model-invocation: true` with handoffs).
 
 ---
 

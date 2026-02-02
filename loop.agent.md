@@ -2,14 +2,14 @@
 name: Loop
 description: 'Meta-loop orchestrator with shared memory, context synthesis, and stall detection. Self-correcting engineering workflow with coherence checks.'
 agents: ['LoopGather', 'LoopMonitor', 'LoopDecide', 'LoopPlan', 'LoopPlanReview', 'LoopScaffold', 'LoopImplement', 'LoopReview', 'LoopRollback']
-infer: 'user'
+disable-model-invocation: true
 handoffs: 
-  - label: Loop!
+  - label: Orchestrate Loop!
     agent: Loop
     prompt: Loop!
     send: true
+tools: ['agent', 'search', 'read', 'edit/createFile', 'edit/createDirectory', 'vscode/askQuestions', 'todo']
 ---
-`tools: ['agent', 'edit/createFile', 'edit/createDirectory', 'vscode/askQuestions', 'todo']`
 
 # Loop Orchestrator
 
@@ -52,15 +52,15 @@ Before any action, determine which task to work on:
 
 2. **If match found**: Use that task folder, pass path to LoopGather
 
-3. **If no match or ambiguous**:
+3. **If `/.loop/` is empty or doesn't exist**: Treat as new task request—proceed directly to Initialize
+
+4. **If no match or ambiguous** (and tasks exist):
    - Scan `/.loop/` for all `NNN-*` folders
    - Read first line of each `plan.md` for status
    - Present list to user: `[NNN-slug] Status: DRAFT|APPROVED|IN_PROGRESS|COMPLETE`
    - Ask: "Which task should I continue, or describe a new task?"
    - If user picks existing → use that task
    - If user describes new work → create new task (see Initialize)
-
-4. **If `/.loop/` is empty or doesn't exist**: Treat as new task request
 
 ## Workflow Diagram
 

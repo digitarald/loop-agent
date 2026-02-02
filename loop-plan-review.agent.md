@@ -1,9 +1,9 @@
 ---
 name: LoopPlanReview
 description: 'Reviews and validates implementation plans for completeness, feasibility, and coherence with prior decisions.'
-infer: 'hidden'
+user-invokable: false
+tools: ['read', 'edit', 'search', 'github/web_search']
 ---
-`tools: ['read', 'search', 'edit', 'vscode/askQuestions']`
 
 # Plan Review Agent
 

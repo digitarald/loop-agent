@@ -1,10 +1,10 @@
 ---
 name: LoopMonitor
 description: 'Tracks execution loops for stalls, regressions, or repeated failures. Updates loop-state.md with meta-loop status.'
-infer: 'hidden'
+user-invokable: false
 model: ['GLM 4.7 (preview) (cerebras)', 'Gemini 3 Flash (Preview) (copilot)', 'Claude Haiku 4.5 (copilot)']
+tools: ['search', 'read', 'edit']
 ---
-`tools: ['read', 'edit']`
 
 # Loop Monitor
 

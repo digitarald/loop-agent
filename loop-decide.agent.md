@@ -1,7 +1,7 @@
 ---
 name: LoopDecide
 description: 'Records architectural decisions with reasoning to shared memory. Use when a non-obvious choice is made that future agents should know about.'
-infer: 'hidden'
+user-invokable: false
 model: ['GLM 4.7 (preview) (cerebras)', 'Claude Haiku 4.5 (copilot)']
 ---
 `tools: ['read', 'edit']`

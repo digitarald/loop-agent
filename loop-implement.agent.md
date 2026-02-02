@@ -1,10 +1,9 @@
 ---
 name: LoopImplement
 description: 'Implements complete, production-ready code for planned tasks. Reads from shared /.loop/ folder.'
-infer: 'hidden'
+user-invokable: false
 model: ['GLM 4.7 (preview) (cerebras)', 'Gemini 3 Flash (Preview) (copilot)', 'Claude Haiku 4.5 (copilot)']
 ---
-`tools: all (code-authoring agent)`
 
 # Implementation Agent
 

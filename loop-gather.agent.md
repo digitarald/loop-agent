@@ -1,10 +1,10 @@
 ---
 name: LoopGather
 description: 'Synthesizes context from shared memory folder and codebase. Use when an agent needs current project state without reading everything itself.'
-infer: 'hidden'
+user-invokable: false
 model: ['GLM 4.7 (preview) (cerebras)', 'Gemini 3 Flash (Preview) (copilot)', 'Claude Haiku 4.5 (copilot)']
+tools: ['read', 'edit', 'search', 'memory']
 ---
-`tools: ['read', 'search', 'edit']`
 
 # Context Gatherer
 

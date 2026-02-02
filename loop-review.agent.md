@@ -1,9 +1,8 @@
 ---
 name: LoopReview
 description: 'Reviews implemented code for quality, correctness, and coherence with prior decisions.'
-infer: 'hidden'
+user-invokable: false
 ---
-`tools: ['execute', 'read', 'search', 'edit', 'vscode/askQuestions']`
 
 # Code Review Agent
 
