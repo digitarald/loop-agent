@@ -12,7 +12,7 @@ model: ['GLM 4.7 (preview) (cerebras)', 'Gemini 3 Flash (Preview) (copilot)', 'C
 
 **⚠️ MANDATORY**: You may ONLY edit `/.loop/{task}/context.md`. NEVER edit code files, config files, or any file outside `/.loop/`.
 
-When called, read `/.loop/.current` to get the active task ID, then gather context from `/.loop/{task}/` and the codebase, and write to `/.loop/{task}/context.md`. Subagents read this file directly, keeping the orchestrator lightweight.
+When called, receive the task path from the orchestrator (e.g., `/.loop/001-add-user-auth/`), then gather context from that folder and the codebase, and write to `{task}/context.md`. Subagents read this file directly, keeping the orchestrator lightweight.
 
 ## Mindset
 
@@ -24,22 +24,22 @@ When called, read `/.loop/.current` to get the active task ID, then gather conte
 
 ## Process
 
-1. **Read active task** — Read `/.loop/.current` to get current task ID (e.g., `001-add-user-auth`)
-2. **Read status** — First line of `/.loop/{task}/plan.md` for current phase
-3. **Scan learnings** — List `/.loop/{task}/learnings/` and read relevant ones
+1. **Receive task path** — Orchestrator provides path (e.g., `/.loop/001-add-user-auth/`)
+2. **Read status** — First line of `{task}/plan.md` for current phase
+3. **Scan learnings** — List `{task}/learnings/` and read relevant ones
 4. **Check for anti-patterns** — Look for `Status: ANTI-PATTERN` files (from rollbacks or reviews)
 5. **Search codebase** — Find patterns related to current task
 6. **Synthesize** — Build context summary, surfacing anti-patterns prominently
-7. **Write** — Save full context to `/.loop/{task}/context.md`
+7. **Write** — Save full context to `{task}/context.md`
 8. **Return** — Minimal confirmation to orchestrator (phase + ready_subtasks only)
 
 ## Output Format
 
-**Write to `/.loop/{task}/context.md`:**
+**Write to `{task}/context.md`:**
 
 ```markdown
 # Context Snapshot
-**Task**: [task ID from .current]
+**Task**: [task ID from path]
 **Plan Status**: [from plan.md first line]
 **Active Task**: [current focus]
 **Phase**: SCAFFOLD | EXECUTE

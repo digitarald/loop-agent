@@ -84,3 +84,44 @@ Do NOT work around blockers silently—this creates stalls the loop can't detect
 **Notes:** [any deviations or concerns]
 **Status:** COMPLETE | BLOCKED: [reason]
 ```
+
+---
+
+## Learning from Fixes
+
+When you're implementing after a rejection (i.e., `Feedback` is provided), capture what went wrong the first time so future implementations avoid the same mistake.
+
+**Record a fix pattern when:**
+- The fix reveals a pattern that future implementations should follow
+- The original mistake was non-obvious (not just a typo or oversight)
+- The lesson isn't already covered by an existing learning
+
+**Write to `/.loop/{task}/learnings/NNN-fix-pattern.md`:**
+
+```markdown
+# Fix Pattern [NNN]: [Brief description]
+
+**Date**: [timestamp]
+**Status**: ANTI-PATTERN
+**Source**: implement-fix
+**Subtask**: [ID]
+
+## What Went Wrong
+[The original mistake — e.g., "Missing null check on user input", "Used wrong API signature"]
+
+## The Fix
+[What you changed to resolve it]
+
+## Why It Was Missed Initially
+[Root cause — unclear acceptance criteria? unfamiliar codebase pattern? edge case not in spec?]
+
+## For Future Implementations
+- [Actionable guidance — e.g., "Always validate inputs before processing", "Check existing tests for API usage patterns"]
+```
+
+**Include in output when fixing:**
+```markdown
+**Fix pattern recorded:** [NNN]-fix-pattern.md (or "none — trivial fix" or "none — already covered by [existing learning]")
+```
+
+Skip recording for trivial fixes (typos, simple oversights) or when an existing learning already covers the pattern.

@@ -181,12 +181,16 @@ Holistic review + write report.
 
 ## Anti-Pattern Recording
 
-When you notice recurring issues, record them so future batches learn from them.
+Capture Critical issues as learnings so they don't recur. The bar is low: if it's Critical and not already documented, record it.
 
 **Record an anti-pattern when:**
-- Same issue type appears in 2+ subtasks in the same batch
+- Any Critical issue that isn't already covered by an existing learning in `/.loop/{task}/learnings/`
 - Issue contradicts or reveals gap in existing decision
 - Critical issue suggests missing acceptance criterion in plan
+
+**Skip recording when:**
+- An existing learning already covers this issue type
+- The issue is Minor/Suggestion severity
 
 **Write to `/.loop/{task}/learnings/NNN-review-anti-pattern.md`:**
 

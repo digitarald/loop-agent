@@ -23,7 +23,8 @@ Loop uses a **flat, single-level hierarchy**: the orchestrator calls subagents, 
 
 ```mermaid
 flowchart TB
-    User([User]) --> Loop[Loop Orchestrator]
+    User([User]) --> Resolve[Task Resolution]
+    Resolve --> Loop[Loop Orchestrator]
     
     Loop --> LG[LoopGather]
     Loop --> LM[LoopMonitor]
@@ -51,6 +52,7 @@ flowchart TB
     LM -.recovery.-> LRB
     
     style Loop fill:#e1f5ff
+    style Resolve fill:#f0f0f0
     style LG fill:#fff4e1
     style LM fill:#ffe1e1
     style LD fill:#e1ffe1
@@ -62,7 +64,6 @@ Each task gets its own folder under `/.loop/` with an auto-incremented, human-re
 
 ```
 /.loop/
-├── .current              # Active task ID (e.g., "001-add-user-auth")
 ├── 001-add-user-auth/    # First task
 │   ├── context.md        # Synthesized context for agents
 │   ├── plan.md           # Task breakdown + progress checkboxes
@@ -86,10 +87,22 @@ Each task gets its own folder under `/.loop/` with an auto-incremented, human-re
 
 ## How It Works
 
+### Task Resolution
+
+Before any action, the orchestrator determines which task to work on:
+
+1. **Parse user message** for task hints (e.g., "continue 002-fix-bug", "resume the auth task")
+2. **If match found**: Use that task folder
+3. **If no match or ambiguous**: List available tasks with status, ask user to pick or describe new work
+4. **If no tasks exist**: Create new task
+
+This replaces file-based state tracking—the orchestrator infers context from the conversation.
+
 ### Phase 1: Planning with Coherence Checks
 
 ```mermaid
 sequenceDiagram
+    participant User
     participant Loop
     participant LoopGather
     participant LoopPlan
@@ -97,7 +110,18 @@ sequenceDiagram
     participant LoopPlanReview
     participant Todo as Todo Tool
     
-    Loop->>LoopGather: Get current state
+    User->>Loop: Request (may include task hint)
+    
+    alt Task hint found
+        Loop->>Loop: Resolve to /.loop/NNN-slug/
+    else No match or ambiguous
+        Loop->>User: List tasks, ask which to continue
+        User->>Loop: Pick task or describe new
+    else New task
+        Loop->>Loop: Create /.loop/NNN-slug/
+    end
+    
+    Loop->>LoopGather: Get current state (task path)
     LoopGather-->>Loop: phase, ready_subtasks (writes context.md)
     
     Loop->>LoopPlan: Plan with context
@@ -326,8 +350,8 @@ This lets users see orchestrator progress without reading log files or memory st
 
 | Agent | Role | Tools | Reads | Writes |
 |-------|------|-------|-------|--------|
-| **Loop** | Orchestrator | agent, edit, askQuestions, todo | Nothing (delegates to LoopGather) | {task}/loop-state.md (init only), .current |
-| **LoopGather** | Context synthesizer | read, search | .current, {task}/plan.md, {task}/learnings/* | {task}/context.md |
+| **Loop** | Orchestrator | agent, edit, askQuestions, todo | plan.md first line (for task list status) | {task}/loop-state.md (init only) |
+| **LoopGather** | Context synthesizer | read, search | {task}/plan.md, {task}/learnings/* | {task}/context.md |
 | **LoopMonitor** | Stall detector | read, edit | {task}/loop-state.md | {task}/loop-state.md |
 | **LoopDecide** | Decision recorder | read, edit | {task}/learnings/* (to get next ID) | {task}/learnings/NNN-*.md |
 | **LoopPlan** | Planner | read, search, edit | codebase, {task}/context.md | {task}/plan.md |
@@ -364,9 +388,9 @@ Build a REST API with JWT authentication
 ```
 
 The orchestrator will:
-1. Initialize `/.loop/NNN-slug/` structure for the new task
-2. Write task ID to `/.loop/.current`
-3. Call `LoopGather` to check for existing state
+1. Resolve task from user message (or list existing tasks and ask)
+2. Initialize `/.loop/NNN-slug/` structure for a new task
+3. Call `LoopGather` with the task path to check for existing state
 4. Delegate to `LoopPlan` → `LoopPlanReview`
 5. **Create todo items** for all subtasks (tracked in VS Code UI throughout execution)
 6. Scaffold architecture with `LoopScaffold`
@@ -378,8 +402,14 @@ All reasoning is preserved in `/.loop/{task}/learnings/` for future reference.
 
 ### Task Management
 
-**Switch tasks:** Say "resume task 001-add-user-auth" or "switch to task 002"
-**List tasks:** Say "list tasks" to see all task folders with their status
+**Continue a task:** Include task hints in your message:
+- "Continue 002-fix-payment-bug"
+- "Resume the auth task" 
+- "Keep working on dark mode"
+
+**List tasks:** Say "list tasks" or "show tasks" to see all task folders with their status
+
+**New task:** If no hint matches, the orchestrator will show existing tasks and ask whether to continue one or start fresh
 
 ---
 

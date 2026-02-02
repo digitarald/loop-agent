@@ -76,6 +76,46 @@ Don't ask for permission on clear-cut issues—just flag them for revision.
 
 **On APPROVED:** Update `/.loop/{task}/plan.md` to set `Status: APPROVED`
 
+---
+
+## Learning from Rejections
+
+When you return `NEEDS REVISION` with Critical issues, capture what went wrong so future plans don't repeat the mistake.
+
+**Record a plan rejection learning when:**
+- Critical issue reveals a gap in how the plan was scoped or structured
+- Plan contradicted prior decisions (context wasn't properly incorporated)
+- Missing acceptance criteria or unclear requirements caused the issue
+
+**Write to `/.loop/{task}/learnings/NNN-plan-rejected.md`:**
+
+```markdown
+# Plan Rejection [NNN]: [Brief description]
+
+**Date**: [timestamp]
+**Status**: ANTI-PATTERN
+**Source**: plan-review
+
+## What the Plan Got Wrong
+[e.g., "Scope included features not in requirements", "Contradicted decision 002-api-design", "Missing error handling acceptance criteria"]
+
+## Why It Was Missed
+[Root cause — was context.md incomplete? Did planner skip a check?]
+
+## What to Check in Future Plans
+- For LoopPlan: [specific guidance]
+- For LoopPlanReview: [what to look for earlier]
+```
+
+**Include in NEEDS REVISION output:**
+```markdown
+**Learning recorded:** [NNN]-plan-rejected.md (or "none — issue already covered by [existing learning]")
+```
+
+Skip recording if the issue is already covered by an existing learning in `/.loop/{task}/learnings/`.
+
+---
+
 ## Rules
 
 - Do NOT call other agents

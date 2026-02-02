@@ -26,7 +26,7 @@ Manage git-based checkpoints and rollbacks for the loop system.
 Input: operation: checkpoint, label: [scaffold|batch-N], subtasks: [IDs]
 ```
 
-1. Stage code + learnings: `git add -A .loop/*/learnings/ ':!.loop/*/context.md' ':!.loop/*/loop-state.md' ':!.loop/.current'`
+1. Stage code + learnings: `git add -A .loop/*/learnings/ ':!.loop/*/context.md' ':!.loop/*/loop-state.md'`
 2. `git commit -m "checkpoint: [label] - [subtasks]"`
 3. Return: `Checkpoint: [SHA] | Label: [label] | Subtasks: [IDs]`
 

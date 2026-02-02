@@ -23,7 +23,6 @@ Each task gets its own folder under `/.loop/` with an auto-incremented, human-re
 
 ```
 /.loop/
-├── .current              # Active task ID (e.g., "001-add-user-auth")
 ├── 001-add-user-auth/    # First task
 │   ├── context.md        # Current context (LoopGather writes, subagents read)
 │   ├── plan.md           # Task breakdown + progress
@@ -40,7 +39,28 @@ Each task gets its own folder under `/.loop/` with an auto-incremented, human-re
 - `NNN` = 3-digit zero-padded sequential number (001, 002, ...)
 - `slug` = kebab-case summary from request (max 40 chars, 3-5 keywords)
 
-**Your protocol**: NEVER read files directly. Call LoopGather first, then dispatch subagents. Subagents read the active task's `context.md` themselves—you don't pass context.
+**Your protocol**: NEVER read files directly. Resolve task from user message, call LoopGather with the task path, then dispatch subagents. Subagents read the active task's `context.md` themselves—you don't pass context.
+
+## Task Resolution
+
+Before any action, determine which task to work on:
+
+1. **Parse user message** for task hints:
+   - Explicit ID: "continue 002-fix-bug" → `/.loop/002-fix-bug/`
+   - Partial match: "resume the auth task" → scan for `*auth*` in `/.loop/`
+   - Descriptive: "keep working on dark mode" → scan for matching slug
+
+2. **If match found**: Use that task folder, pass path to LoopGather
+
+3. **If no match or ambiguous**:
+   - Scan `/.loop/` for all `NNN-*` folders
+   - Read first line of each `plan.md` for status
+   - Present list to user: `[NNN-slug] Status: DRAFT|APPROVED|IN_PROGRESS|COMPLETE`
+   - Ask: "Which task should I continue, or describe a new task?"
+   - If user picks existing → use that task
+   - If user describes new work → create new task (see Initialize)
+
+4. **If `/.loop/` is empty or doesn't exist**: Treat as new task request
 
 ## Workflow Diagram
 
@@ -85,13 +105,12 @@ flowchart TD
 
 ### 1. Initialize
 
-On each new request, create a task folder:
+When Task Resolution determines a **new task** is needed:
 
 1. **Scan for existing tasks**: List `/.loop/` to find existing `NNN-*` folders
 2. **Compute next ID**: Increment highest existing number (or start at 001)
 3. **Generate slug**: Extract 3-5 keywords from user request, kebab-case, max 40 chars
 4. **Create task folder**: `/.loop/NNN-slug/`
-5. **Set as active**: Write task ID to `/.loop/.current`
 
 **New task structure:**
 ```
@@ -102,7 +121,7 @@ On each new request, create a task folder:
 ├── learnings/      (empty folder, version controlled)
 ```
 
-**Version control policy**: The `learnings/` folder is committed to preserve reasoning across sessions. Ephemeral files (`context.md`, `loop-state.md`, `.current`) are excluded—add them to `.gitignore` if desired.
+**Version control policy**: The `learnings/` folder is committed to preserve reasoning across sessions. Ephemeral files (`context.md`, `loop-state.md`) are excluded—add them to `.gitignore` if desired.
 
 Initialize `loop-state.md`:
 ```markdown
@@ -111,16 +130,14 @@ Initialize `loop-state.md`:
 **Status**: INITIALIZING
 ```
 
-**Resuming a task**: If user says "resume task X" or "switch to task X":
-1. Read `/.loop/.current` for current active task
-2. Update `/.loop/.current` to the target task ID
-3. Call LoopGather to reload context from that task folder
-4. Continue from where that task left off
+**Resuming a task**: Handled by Task Resolution—user message is parsed for task hints, or user picks from list. Once resolved:
+1. Call LoopGather with the task path to reload context
+2. Continue from where that task left off
 
-**Listing tasks**: When user asks to list tasks:
+**Listing tasks**: Handled by Task Resolution when no clear match. Or when user explicitly asks:
 1. Scan `/.loop/` for all `NNN-*` folders
 2. Read each task's `plan.md` first line for status
-3. Display: `[NNN-slug] Status: DRAFT|APPROVED|COMPLETE`
+3. Display: `[NNN-slug] Status: DRAFT|APPROVED|IN_PROGRESS|COMPLETE`
 
 ### 2. Gather Context
 
@@ -129,7 +146,7 @@ Before any planning, call `loop-gather` to:
 - Synthesize prior decisions
 - Write context to `{task}/context.md`
 
-LoopGather returns only `Phase` and `ready_subtasks` to you. Full context is in `{task}/context.md` for subagents to read directly.
+Pass the resolved task path to LoopGather. It returns `Phase` and `ready_subtasks` to you. Full context is in `{task}/context.md` for subagents to read directly.
 
 ### 3. Planning Loop
 
@@ -144,7 +161,7 @@ LoopPlanReview + decisions:[summaries] → reads {task}/context.md itself, retur
 
 **No refresh between Plan and PlanReview.** Decisions from LoopDecide are passed inline to LoopPlanReview in the dispatch prompt. LoopPlanReview can read `learnings/` directly if needed.
 
-**Note**: `{task}` refers to the active task folder path from `/.loop/.current` (e.g., `/.loop/001-add-user-auth/`).
+**Note**: `{task}` refers to the resolved task folder path (e.g., `/.loop/001-add-user-auth/`).
 
 If agent output includes a `## Decisions` section, call LoopDecide to record each decision.
 
@@ -305,7 +322,7 @@ When all subtasks complete:
 4. If agent output includes `## Decisions`, call `LoopDecide` → capture returned summaries
 5. Pass decision summaries inline to next agent that needs them
 
-**Never read**: `.current`, `plan.md`, `loop-state.md`, `context.md`, `learnings/*.md`
+**Never read**: `plan.md`, `loop-state.md`, `context.md`, `learnings/*.md` (exception: read `plan.md` first line during Task Resolution to show status)
 
 ## Parallel Dispatch Protocol
 
@@ -340,4 +357,4 @@ When all subtasks complete:
 - Do NOT ignore LoopMonitor warnings
 - Escalate after 2 failed recovery attempts
 - Use `vscode/askQuestions` when human judgment needed for recovery strategy
-- Your edit tools are ONLY for creating the `/.loop/{task}/` folder structure during initialization and managing `/.loop/.current`
+- Your edit tools are ONLY for creating the `/.loop/{task}/` folder structure during initialization
