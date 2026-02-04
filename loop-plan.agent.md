@@ -1,8 +1,8 @@
 ---
 name: LoopPlan
 description: 'Analyzes requirements and generates structured implementation plans with task breakdown. Writes to shared /.loop/ folder.'
-user-invokable: false
 tools: ['read', 'search', 'edit', 'github/web_search']
+model: GPT-5.2-Codex (copilot)
 ---
 
 # Planning Agent
@@ -38,7 +38,7 @@ Do NOT call other agents. Work with the context file.
 
 **Read first**: `/.loop/{task}/context.md` for prior decisions and anti-patterns
 **Write to**: `/.loop/{task}/plan.md`
-**Decision output**: Include `## Decisions` section in your output for orchestrator to record
+**Write decisions to**: `/.loop/{task}/learnings/NNN-plan-decision.md` (when significant choices are made)
 
 **On revision:** Increment `Iteration:` counter and preserve completed subtasks (marked `[x]`)
 
@@ -49,7 +49,7 @@ Do NOT call other agents. Work with the context file.
 3. **Research** — Explore codebase for relevant patterns, dependencies
 4. **Decompose** — Break work into discrete, testable tasks
 5. **Sequence** — Order tasks by dependencies and risk
-6. **Flag decisions** — Note non-obvious choices in `## Decisions` output section
+6. **Record decisions** — Write significant choices directly to `learnings/`
 7. **Save** — Write plan to `/.loop/{task}/plan.md`
 
 ## Output Format
@@ -99,13 +99,14 @@ Save to `/.loop/{task}/plan.md`:
 - [Items needing user clarification]
 
 ## Decisions Made
-- [Reference to decision IDs recorded via loop-decide]
+- [Reference to decision IDs in learnings/]
 ```
 
 **Return to orchestrator** (after writing plan.md):
 ```
 Status: DRAFT | NEEDS_CLARIFICATION
 Questions: [list of open questions, if NEEDS_CLARIFICATION]
+Decisions recorded: [NNN-plan-decision.md IDs, or none]
 ```
 
 - Use `NEEDS_CLARIFICATION` when you have Open Questions that block planning — still write your partial plan to plan.md first
@@ -128,15 +129,46 @@ Questions: [list of open questions, if NEEDS_CLARIFICATION]
 - [ ] **2.1** Implement UserService — Files: `services/user.ts` | `depends_on: 1.1`
 ```
 
-## When to Flag Decisions
+## When to Record Decisions
 
-Include in your `## Decisions` output section when you:
+**Bias: When in doubt, record.** An extra learning costs nothing; a missed insight costs future iterations.
+
+Write directly to `/.loop/{task}/learnings/NNN-plan-decision.md` when you:
 - Choose between multiple valid architectural approaches
 - Reject an obvious solution for non-obvious reasons
 - Establish a pattern that implementation agents should follow
 - Make trade-offs (performance vs. simplicity, etc.)
+- Discover a codebase constraint that influenced the plan
+- Learn something about the project that future plans should know
 
-The orchestrator will call LoopDecide to record these.
+**Decision file format:**
+
+```markdown
+# Decision [NNN]: [Title]
+
+**Date**: [timestamp]
+**Status**: DECISION
+**Source**: plan
+
+## Context
+[What situation prompted this decision—1-2 sentences]
+
+## Choice
+[What was decided—be specific and concrete]
+
+## Alternatives Rejected
+- **[Alternative A]**: [Why not]
+- **[Alternative B]**: [Why not]
+
+## Invalidated If
+[Conditions that would require revisiting this decision]
+```
+
+**Naming:** `NNN-plan-decision.md` where NNN is 3-digit, zero-padded, sequential. List existing `learnings/` files to get next ID.
+
+**Only skip when:**
+- The choice is literally dictated by requirements (no alternative exists)
+- An existing learning already covers this exact decision
 
 ## Boundaries
 

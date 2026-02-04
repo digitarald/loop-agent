@@ -1,14 +1,14 @@
 ---
 name: Loop
 description: 'Meta-loop orchestrator with shared memory, context synthesis, and stall detection. Self-correcting engineering workflow with coherence checks.'
-agents: ['LoopGather', 'LoopMonitor', 'LoopDecide', 'LoopPlan', 'LoopPlanReview', 'LoopScaffold', 'LoopImplement', 'LoopReview', 'LoopRollback']
+agents: ['LoopGather', 'LoopMonitor', 'LoopPlan', 'LoopPlanReview', 'LoopScaffold', 'LoopImplement', 'LoopReview', 'LoopRollback']
 disable-model-invocation: true
 handoffs: 
   - label: Orchestrate Loop!
     agent: Loop
     prompt: Loop!
     send: true
-tools: ['agent', 'search', 'read', 'edit/createFile', 'edit/createDirectory', 'vscode/askQuestions', 'todo']
+tools: ['vscode/askQuestions', 'read', 'agent', 'edit', 'search', 'todo']
 ---
 
 # Loop Orchestrator
@@ -152,18 +152,15 @@ Pass the resolved task path to LoopGather. It returns `Phase` and `ready_subtask
 
 ```
 LoopGather → writes {task}/context.md, returns {phase, ready_subtasks}
-LoopPlan + request → reads {task}/context.md itself, returns {status, questions?} + writes plan.md
+LoopPlan + request → reads {task}/context.md itself, returns {status, questions?} + writes plan.md + writes learnings/*.md for decisions
   ├─ if NEEDS_CLARIFICATION → Orchestrator asks user, re-dispatches LoopPlan with Clarifications
   └─ if DRAFT → continue
-LoopDecide + decisions (if any in output) → returns recorded decision summaries
-LoopPlanReview + decisions:[summaries] → reads {task}/context.md itself, returns verdict
+LoopPlanReview → reads {task}/context.md + learnings/*.md itself, returns verdict
 ```
 
-**No refresh between Plan and PlanReview.** Decisions from LoopDecide are passed inline to LoopPlanReview in the dispatch prompt. LoopPlanReview can read `learnings/` directly if needed.
+**No refresh between Plan and PlanReview.** LoopPlan writes decisions directly to `learnings/`. LoopPlanReview reads them directly if needed.
 
 **Note**: `{task}` refers to the resolved task folder path (e.g., `/.loop/001-add-user-auth/`).
-
-If agent output includes a `## Decisions` section, call LoopDecide to record each decision.
 
 **On NEEDS_CLARIFICATION:**
 1. LoopPlan returns `Status: NEEDS_CLARIFICATION` with `Questions: [list]`
@@ -209,12 +206,10 @@ If agent output includes a `## Decisions` section, call LoopDecide to record eac
 
 ```
 LoopGather → writes {task}/context.md, returns {phase: SCAFFOLD, ready_subtasks: [scaffold tasks]}
-[PARALLEL] LoopScaffold + task:A → reads {task}/context.md, returns output1 (if independent tasks)
+[PARALLEL] LoopScaffold + task:A → reads {task}/context.md, returns output1, writes learnings/*.md if decisions made
 [PARALLEL] LoopScaffold + task:B → reads {task}/context.md, returns output2
 [WAIT ALL]
-[PARALLEL] LoopDecide + decisions from outputs (if any ## Decisions sections) → returns decision summaries
-[WAIT ALL]
-LoopReview + mode:scaffold + decisions:[summaries] → reads {task}/context.md + scaffold files directly, returns verdict
+LoopReview + mode:scaffold → reads {task}/context.md + scaffold files + learnings/*.md directly, returns verdict
 LoopRollback + operation:checkpoint + label:scaffold → checkpoint SHA
 ```
 
@@ -231,22 +226,45 @@ LoopRollback + operation:checkpoint + label:scaffold → checkpoint SHA
 
 **Phase detection**: LoopGather returns `Phase: EXECUTE` when all scaffold tasks complete and non-scaffold tasks remain.
 
+#### Batch Execution Checklist
+
+**CRITICAL: Follow this sequence exactly. Do NOT skip steps.**
+
+| Step | Agent | Required Before | Produces |
+|------|-------|-----------------|----------|
+| 1 | LoopGather | — | `ready_subtasks`, updates `context.md` |
+| 2 | LoopImplement (parallel) | Step 1 | Implementation + `learnings/*.md` |
+| 3 | **LoopReview (batch)** | Step 2 complete | Verdict + anti-patterns |
+| 4 | LoopMonitor | **Step 3 verdict** | Status + recommendation |
+| 5 | LoopRollback | Step 4 | Checkpoint SHA |
+
+**NEVER:**
+- NEVER call LoopMonitor until LoopReview completes — LoopMonitor requires review verdict as input
+- NEVER skip LoopReview even if all implementations report success — review catches issues implementations miss
+- NEVER proceed to next batch without LoopMonitor confirming PROGRESSING status
+
 For each batch:
 
 ```
+# Step 1: Gather
 LoopGather → writes {task}/context.md (includes ready_subtasks: [1.1, 1.3, 2.2])
 **📋 TODO:** Mark ready_subtasks as `in-progress`
-[PARALLEL] LoopImplement + subtask:1.1 → reads {task}/context.md, returns output1
+
+# Step 2: Implement (parallel)
+[PARALLEL] LoopImplement + subtask:1.1 → reads {task}/context.md, returns output1, writes learnings/*.md if fix patterns found
 [PARALLEL] LoopImplement + subtask:1.3 → reads {task}/context.md, returns output2
 [PARALLEL] LoopImplement + subtask:2.2 → reads {task}/context.md, returns output3
 [WAIT ALL]
-[PARALLEL] LoopDecide + decisions from output1 → returns summaries1
-[PARALLEL] LoopDecide + decisions from output2 → returns summaries2
-[WAIT ALL]
-LoopReview + mode:batch + subtasks:[1.1, 1.3, 2.2] + decisions:[all summaries] → reads {task}/context.md, returns verdict
+
+# Step 3: Review (REQUIRED before monitor)
+LoopReview + mode:batch + subtasks:[1.1, 1.3, 2.2] → reads {task}/context.md + learnings/*.md, returns verdict, writes anti-patterns
 **📋 TODO:** Mark APPROVED subtasks as `completed`
+
+# Step 4: Monitor (requires review verdict)
+LoopMonitor + review_verdict + batch results → status
+
+# Step 5: Checkpoint
 LoopRollback + operation:checkpoint + label:batch-N + subtasks:[approved IDs]
-LoopMonitor + batch results → status
 ```
 
 **On CHANGES REQUESTED:** 
@@ -279,18 +297,7 @@ When `loop-monitor` returns non-PROGRESSING:
 
 **Max retries**: 2 per status. After 2 failed recoveries, escalate to user with full context.
 
-### 7. Record Decisions
-
-When any agent output includes a `## Decisions` section:
-1. Parse the decision details from their output
-2. Call LoopDecide with each decision (parallelize when multiple independent decisions)
-3. LoopDecide writes to `{task}/learnings/`
-
-**Parallel pattern**: When multiple agents return `## Decisions` simultaneously, dispatch all LoopDecide calls in parallel, then wait for all to complete before proceeding.
-
-Agents do NOT call LoopDecide themselves—you do.
-
-### 8. Final Review
+### 7. Final Review
 
 When all subtasks complete:
 1. **📋 TODO:** Verify all todos are `completed`
@@ -311,16 +318,14 @@ When all subtasks complete:
 - ✅ After code changes (implement/scaffold completed)
 - ✅ After rollback recovery
 - ✅ Starting a new batch of subtasks
-- ❌ Between Plan → PlanReview (pass decisions inline)
-- ❌ After LoopDecide records decisions (pass inline)
+- ❌ Between Plan → PlanReview (PlanReview reads learnings directly)
 - ❌ For feedback-only revisions (no codebase changes)
 
 **Dispatch pattern:**
 1. Call `LoopGather` when required (see above) → returns {phase, ready_subtasks}, writes `{task}/context.md`
-2. Dispatch target agent with task identifiers + any inline data (decisions, feedback)
-3. Agent reads `{task}/context.md` for full context
-4. If agent output includes `## Decisions`, call `LoopDecide` → capture returned summaries
-5. Pass decision summaries inline to next agent that needs them
+2. Dispatch target agent with task identifiers + any feedback
+3. Agent reads `{task}/context.md` for full context, writes to `learnings/` directly if needed
+4. Review agents read `learnings/` directly for decision/anti-pattern context
 
 **Never read**: `plan.md`, `loop-state.md`, `context.md`, `learnings/*.md` (exception: read `plan.md` first line during Task Resolution to show status)
 
@@ -328,22 +333,21 @@ When all subtasks complete:
 
 **Can parallelize:**
 - Multiple LoopImplement calls (independent subtasks from ready_subtasks list)
-- Multiple LoopDecide calls (independent decisions from different agent outputs)
 - Multiple LoopScaffold calls (if plan has independent scaffold tasks)
 
 **Must stay sequential:**
 - LoopGather (reads/writes shared state — call once before batch)
-- LoopMonitor (needs all batch results — call once after batch)
-- LoopReview (needs all implementations — call once per batch)
+- LoopReview (needs all implementations — call once per batch, BEFORE monitor)
+- LoopMonitor (needs review verdict + batch results — call once after review)
+
+**CRITICAL: LoopReview → LoopMonitor ordering is enforced.** LoopMonitor will return `BLOCKED: Missing batch review` if called without review verdict. This prevents implementations from shipping without quality checks.
 
 **Pattern:**
 1. Call LoopGather once → get ready_subtasks list, {task}/context.md is written
-2. Dispatch all ready subtasks to LoopImplement in parallel (each reads {task}/context.md)
+2. Dispatch all ready subtasks to LoopImplement in parallel (each reads {task}/context.md, writes learnings/ if needed)
 3. Wait for all to complete
-4. Collect outputs, dispatch LoopDecide in parallel for any with `## Decisions`
-5. Wait for all to complete
-6. Call LoopReview once for the batch (reads {task}/context.md)
-7. Call LoopMonitor once with aggregated results
+4. **Call LoopReview once for the batch** (reads {task}/context.md + learnings/) — MUST happen before monitor
+5. Call LoopMonitor once with **review verdict** + aggregated results
 
 **Dependency awareness:** Only subtasks listed in ready_subtasks can be parallelized. Subtasks with unmet `depends_on` must wait until dependencies complete.
 
@@ -352,7 +356,7 @@ When all subtasks complete:
 - Do NOT write or edit any code (dispatch to LoopScaffold or LoopImplement)
 - Do NOT run terminal commands
 - Do NOT read any files directly (always use LoopGather)
-- Do NOT make architectural decisions (delegate to LoopPlan + LoopDecide)
+- Do NOT make architectural decisions (delegate to LoopPlan)
 - Do NOT fix review issues yourself (re-dispatch to the appropriate subagent)
 - Do NOT ignore LoopMonitor warnings
 - Escalate after 2 failed recovery attempts

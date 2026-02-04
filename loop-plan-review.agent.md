@@ -1,7 +1,6 @@
 ---
 name: LoopPlanReview
 description: 'Reviews and validates implementation plans for completeness, feasibility, and coherence with prior decisions.'
-user-invokable: false
 tools: ['read', 'edit', 'search', 'github/web_search']
 ---
 
@@ -15,11 +14,10 @@ Validate plans before execution begins. Check coherence with prior decisions.
 
 The orchestrator dispatches you with:
 - **Plan**: Reference to `/.loop/{task}/plan.md` to review
-- **Decisions** (optional): Recent decision summaries from LoopDecide (inline, not in context.md yet)
 
-**First step**: Read `/.loop/{task}/context.md` (path provided by orchestrator) for synthesized state (prior decisions, anti-patterns). If `Decisions` are provided inline, incorporate them as additional context.
+**First step**: Read `/.loop/{task}/context.md` (path provided by orchestrator) for synthesized state (prior decisions, anti-patterns). Also read `/.loop/{task}/learnings/` for any recent decisions from LoopPlan.
 
-Do NOT call other agents. Work with the context file + any inline decisions.
+Do NOT call other agents. Work with the context file + learnings folder.
 
 ## Mindset
 
@@ -80,14 +78,21 @@ Don't ask for permission on clear-cut issues—just flag them for revision.
 
 ## Learning from Rejections
 
-When you return `NEEDS REVISION` with Critical issues, capture what went wrong so future plans don't repeat the mistake.
+**Bias: When in doubt, record.** An extra learning costs nothing; a missed insight costs future iterations.
 
-**Record a plan rejection learning when:**
-- Critical issue reveals a gap in how the plan was scoped or structured
-- Plan contradicted prior decisions (context wasn't properly incorporated)
-- Missing acceptance criteria or unclear requirements caused the issue
+When you return `NEEDS REVISION`, capture what went wrong so future plans don't repeat the mistake.
 
-**Write to `/.loop/{task}/learnings/NNN-plan-rejected.md`:**
+**Record a learning when:**
+- Any Critical issue found
+- Plan contradicted prior decisions
+- Missing acceptance criteria or unclear requirements
+- Scope was wrong (too large, too small, wrong focus)
+- You noticed something the planner should have caught
+
+**Only skip when:**
+- An existing learning already covers this exact issue
+
+**Write to `/.loop/{task}/learnings/NNN-plan-review-rejection.md`:**
 
 ```markdown
 # Plan Rejection [NNN]: [Brief description]
@@ -97,7 +102,7 @@ When you return `NEEDS REVISION` with Critical issues, capture what went wrong s
 **Source**: plan-review
 
 ## What the Plan Got Wrong
-[e.g., "Scope included features not in requirements", "Contradicted decision 002-api-design", "Missing error handling acceptance criteria"]
+[e.g., "Scope included features not in requirements", "Contradicted decision 002-api-design"]
 
 ## Why It Was Missed
 [Root cause — was context.md incomplete? Did planner skip a check?]
@@ -109,10 +114,8 @@ When you return `NEEDS REVISION` with Critical issues, capture what went wrong s
 
 **Include in NEEDS REVISION output:**
 ```markdown
-**Learning recorded:** [NNN]-plan-rejected.md (or "none — issue already covered by [existing learning]")
+**Learning recorded:** [NNN]-plan-review-rejection.md (or "none — already covered")
 ```
-
-Skip recording if the issue is already covered by an existing learning in `/.loop/{task}/learnings/`.
 
 ---
 

@@ -1,8 +1,7 @@
 ---
 name: LoopImplement
 description: 'Implements complete, production-ready code for planned tasks. Reads from shared /.loop/ folder.'
-user-invokable: false
-model: ['GLM 4.7 (preview) (cerebras)', 'Gemini 3 Flash (Preview) (copilot)', 'Claude Haiku 4.5 (copilot)']
+model: ['Gemini 3 Flash (Preview) (copilot)', 'Claude Haiku 4.5 (copilot)', 'GLM 4.7 (preview) (cerebras)']
 ---
 
 # Implementation Agent
@@ -36,7 +35,7 @@ Do NOT call other agents. Work with the context file.
 **Read first**: `/.loop/{task}/context.md` for prior decisions and patterns
 **Read**: `/.loop/{task}/plan.md` for subtask and acceptance criteria
 **Update**: Mark `[x]` in `/.loop/{task}/plan.md` when done (your subtask only)
-**Decision output**: Include `## Decisions` section in output if you deviate from plan
+**Write learnings to**: `/.loop/{task}/learnings/NNN-implement-pattern.md` (patterns discovered during implementation)
 
 ## Process
 
@@ -45,16 +44,28 @@ Do NOT call other agents. Work with the context file.
 3. **Research** existing patterns in codebase
 4. **Implement** matching project conventions
 5. **Verify** errors check + tests pass
-6. **Update** — Mark `[x]` in `/.loop/{task}/plan.md`
+6. **Record pattern** — If you learned something useful, capture it (see Learning from Implementation)
+7. **Update** — Mark `[x]` in `/.loop/{task}/plan.md`
 
-## When to Flag Decisions
+## When to Record Patterns
 
-Include in your `## Decisions` output section if you:
-- Deviate from the plan for a good reason
-- Discover an edge case that changes the approach
-- Make a trade-off worth documenting for future agents
+**Bias: Skip unless it prevents a future mistake.** Learnings cost attention. Only record insights that would save another agent from a non-obvious error.
 
-The orchestrator will call LoopDecide to record these.
+**Record ONLY when:**
+- Fixing a rejection — what broke and why (prevents repeat failures)
+- Discovering a hidden constraint — something not in docs, plan, or obvious from code
+- Finding a gotcha — behavior that surprised you despite reading the code
+
+**Skip when (most implementations):**
+- Standard framework patterns (Next.js `'use client'`, factory functions, etc.)
+- Decisions already in the plan (don't restate "used nanoid because plan said so")
+- Obvious codebase conventions (visible in existing files)
+- General best practices (URL state, TypeScript types, error handling)
+- Implementation details (file structure, import paths, component organization)
+
+**Test before writing:** "Would a competent developer reading the plan + code still make this mistake?" If no, skip it.
+
+See **Learning from Implementation** section below for the format.
 
 ## Quality Bar
 
@@ -86,41 +97,44 @@ Do NOT work around blockers silently—this creates stalls the loop can't detect
 
 ---
 
-## Learning from Fixes
+## Learning from Implementation
 
-When you're implementing after a rejection (i.e., `Feedback` is provided), capture what went wrong the first time so future implementations avoid the same mistake.
+Record only non-obvious insights. **Max 15 lines total.**
 
-**Record a fix pattern when:**
-- The fix reveals a pattern that future implementations should follow
-- The original mistake was non-obvious (not just a typo or oversight)
-- The lesson isn't already covered by an existing learning
-
-**Write to `/.loop/{task}/learnings/NNN-fix-pattern.md`:**
+**Write to `/.loop/{task}/learnings/NNN-implement-pattern.md`:**
 
 ```markdown
-# Fix Pattern [NNN]: [Brief description]
+# Pattern [NNN]: [One-line description]
 
-**Date**: [timestamp]
-**Status**: ANTI-PATTERN
-**Source**: implement-fix
-**Subtask**: [ID]
+**Source**: implement | **Subtask**: [ID]
 
-## What Went Wrong
-[The original mistake — e.g., "Missing null check on user input", "Used wrong API signature"]
+## The Gotcha
+[1-3 sentences: What went wrong or was non-obvious?]
 
 ## The Fix
-[What you changed to resolve it]
-
-## Why It Was Missed Initially
-[Root cause — unclear acceptance criteria? unfamiliar codebase pattern? edge case not in spec?]
-
-## For Future Implementations
-- [Actionable guidance — e.g., "Always validate inputs before processing", "Check existing tests for API usage patterns"]
+[1-3 sentences: What to do instead? Be specific.]
 ```
 
-**Include in output when fixing:**
+**Good example** (worth recording):
 ```markdown
-**Fix pattern recorded:** [NNN]-fix-pattern.md (or "none — trivial fix" or "none — already covered by [existing learning]")
+# Pattern 010: gray-matter requires explicit delimiter option
+
+**Source**: implement | **Subtask**: 1.3
+
+## The Gotcha
+gray-matter silently returns empty object when frontmatter uses `~~~` delimiters instead of `---`.
+
+## The Fix  
+Pass `{ delimiters: ['---', '~~~'] }` to support both styles.
 ```
 
-Skip recording for trivial fixes (typos, simple oversights) or when an existing learning already covers the pattern.
+**Bad example** (skip this):
+```markdown
+# Pattern 009: Used factory pattern for Brief creation
+...documenting that we used a factory function (obvious from plan + code)
+```
+
+**Include in output:**
+```markdown
+**Pattern recorded:** [NNN]-implement-pattern.md (or "none")
+```

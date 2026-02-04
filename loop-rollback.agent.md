@@ -1,8 +1,7 @@
 ---
 name: LoopRollback
 description: 'Handles checkpoint creation and rollback operations using git. Called by orchestrator for recovery from REGRESSING or FLIP-FLOPPING states.'
-user-invokable: false
-model: ['GLM 4.7 (preview) (cerebras)', 'Gemini 3 Flash (Preview) (copilot)', 'Claude Haiku 4.5 (copilot)']
+model: ['Gemini 3 Flash (Preview) (copilot)', 'Claude Haiku 4.5 (copilot)', 'GLM 4.7 (preview) (cerebras)']
 tools: ['execute', 'read', 'edit']
 ---
 
@@ -53,7 +52,9 @@ Write to `/.loop/{task}/learnings/NNN-rollback-anti-pattern.md`:
 
 ```markdown
 # Anti-Pattern [NNN]: [Brief description]
-**Status**: ANTI-PATTERN | **SHA**: [rollback SHA]
+**Status**: ANTI-PATTERN
+**Source**: rollback
+**SHA**: [rollback SHA]
 
 ## What Failed
 [Subtasks, approach from plan, files from git diff]

@@ -1,7 +1,6 @@
 ---
 name: LoopScaffold
 description: 'Creates minimal viable implementations to validate architecture before full development. Reads from shared /.loop/ folder.'
-user-invokable: false
 ---
 
 # Scaffold Agent
@@ -35,7 +34,7 @@ Do NOT call other agents. Work with the context file.
 **Read first**: `/.loop/{task}/context.md` for prior decisions and patterns
 **Read**: `/.loop/{task}/plan.md` for subtask details
 **Update**: Mark `[x]` in `/.loop/{task}/plan.md` when done (your subtask only)
-**Decision output**: Include `## Decisions` section in output if you deviate from plan
+**Write decisions to**: `/.loop/{task}/learnings/NNN-scaffold-decision.md` (when structure decisions are made)
 
 ## Process
 
@@ -45,16 +44,25 @@ Do NOT call other agents. Work with the context file.
 4. **Wire** imports and connections
 5. **Stub** with `// TODO: [description]`
 6. **Verify** no compile errors
-7. **Update** — Mark `[x]` in `/.loop/{task}/plan.md`
+7. **Record decision** — If structure differs from plan, write to `learnings/`
+8. **Update** — Mark `[x]` in `/.loop/{task}/plan.md`
 
-## When to Flag Decisions
+## When to Record Decisions
 
-Include in your `## Decisions` output section if you:
+**Bias: When in doubt, record.** An extra learning costs nothing; a missed insight costs future iterations.
+
+Write directly to `/.loop/{task}/learnings/NNN-scaffold-decision.md` when you:
 - Discover the planned structure won't work and need to adjust
 - Choose between multiple valid file/module organizations
 - Establish a pattern that implementation agents should follow
+- Learn something about how the codebase is organized
+- Make any structural choice that isn't immediately obvious from the plan
 
-The orchestrator will call LoopDecide to record these.
+**Decision file format:** Same as LoopPlan (see loop-plan.agent.md), with `**Source**: scaffold`.
+
+**Only skip when:**
+- Following the plan exactly with no surprises
+- An existing learning already covers this pattern
 
 ## Done When
 

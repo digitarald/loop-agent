@@ -28,7 +28,6 @@ flowchart TB
     
     Loop --> LG[LoopGather]
     Loop --> LM[LoopMonitor]
-    Loop --> LD[LoopDecide]
     
     Loop --> LP[LoopPlan]
     Loop --> LPR[LoopPlanReview]
@@ -44,9 +43,9 @@ flowchart TB
     LG -.context.-> LI
     LG -.context.-> LR
     
-    LP -.decisions.-> LD
-    LS -.decisions.-> LD
-    LI -.decisions.-> LD
+    LP -.learnings.-> LPR
+    LS -.learnings.-> LR
+    LI -.learnings.-> LR
     
     LI -.results.-> LM
     LM -.recovery.-> LRB
@@ -55,7 +54,6 @@ flowchart TB
     style Resolve fill:#f0f0f0
     style LG fill:#fff4e1
     style LM fill:#ffe1e1
-    style LD fill:#e1ffe1
 ```
 
 ### Shared Memory Structure
@@ -69,10 +67,11 @@ Each task gets its own folder under `/.loop/` with an auto-incremented, human-re
 │   ├── plan.md           # Task breakdown + progress checkboxes
 │   ├── loop-state.md     # Meta-loop status (iteration, health)
 │   ├── report.md         # Final implementation summary
-│   └── learnings/        # Reasoning trail with dependencies
-│       ├── 001-auth-jwt.md
-│       ├── 002-api-rest.md
-│       └── 003-anti-pattern.md
+│   └── learnings/        # Reasoning trail (decisions + anti-patterns)
+│       ├── 001-plan-decision.md
+│       ├── 002-scaffold-decision.md
+│       ├── 003-implement-pattern.md
+│       └── 004-review-anti-pattern.md
 ├── 002-fix-payment-bug/  # Second task
 │   └── ...
 ```
@@ -106,7 +105,6 @@ sequenceDiagram
     participant Orch as Loop Orchestrator
     participant LoopGather
     participant LoopPlan
-    participant LoopDecide
     participant LoopPlanReview
     participant Todo as Todo Tool
     
@@ -125,7 +123,7 @@ sequenceDiagram
     LoopGather-->>Orch: phase, ready_subtasks (writes context.md)
     
     Orch->>LoopPlan: Plan with context
-    LoopPlan-->>Orch: DRAFT, NEEDS_CLARIFICATION, or plan.md
+    LoopPlan-->>Orch: DRAFT, NEEDS_CLARIFICATION, or plan.md (writes learnings/*.md for decisions)
     
     alt NEEDS_CLARIFICATION
         Note over Orch: LoopPlan returns Open Questions
@@ -133,12 +131,7 @@ sequenceDiagram
         Orch->>LoopPlan: Re-plan with Clarifications
     end
     
-    alt Has Decisions
-        Orch->>LoopDecide: Record decisions
-        LoopDecide-->>Orch: decision summaries (inline)
-    end
-    
-    Orch->>LoopPlanReview: Review plan + decisions (inline)
+    Orch->>LoopPlanReview: Review plan (reads learnings/*.md directly)
     LoopPlanReview-->>Orch: APPROVED or NEEDS REVISION
     
     alt NEEDS REVISION
@@ -151,9 +144,8 @@ sequenceDiagram
 
 **What's happening:**
 - `LoopGather` synthesizes prior decisions so new plans don't contradict old ones (called once at start)
-- `LoopPlan` creates task breakdown, flags non-obvious choices; returns `NEEDS_CLARIFICATION` with Open Questions if user input is required
-- `LoopDecide` records reasoning and returns **inline summaries** to orchestrator
-- `LoopPlanReview` receives decisions inline—no context refresh needed between plan and review
+- `LoopPlan` creates task breakdown, flags non-obvious choices, writes decisions directly to `learnings/`; returns `NEEDS_CLARIFICATION` with Open Questions if user input is required
+- `LoopPlanReview` reads `learnings/` directly—no context refresh needed between plan and review
 - **Todo tracking** creates visibility for all subtasks in VS Code UI
 
 ---
@@ -168,7 +160,6 @@ sequenceDiagram
     participant LI1 as LoopImplement 1.1
     participant LI2 as LoopImplement 1.3
     participant LI3 as LoopImplement 2.2
-    participant LoopDecide
     participant LoopReview
     participant LoopMonitor
     
@@ -183,23 +174,17 @@ sequenceDiagram
         Orch->>LI3: Implement with context
     end
     
-    LI1-->>Orch: Output (may include Decisions)
-    LI2-->>Orch: Output (may include Decisions)
+    LI1-->>Orch: Output (may write patterns to learnings/)
+    LI2-->>Orch: Output
     LI3-->>Orch: Output
     
-    par Parallel Decision Recording
-        Orch->>LoopDecide: Record decisions from 1.1
-        Orch->>LoopDecide: Record decisions from 1.3
-    end
-    
-    LoopDecide-->>Orch: All decisions recorded
-    
-    Orch->>LoopReview: Review batch [1.1, 1.3, 2.2]
+    Orch->>LoopReview: Review batch [1.1, 1.3, 2.2] (reads learnings/*.md)
     LoopReview-->>Orch: Verdicts (APPROVED: 1.1, 1.3 | CHANGES: 2.2)
     
     Orch->>Todo: Mark approved subtasks completed
     
-    Orch->>LoopMonitor: Batch results
+    Note over Orch,LoopMonitor: LoopMonitor REQUIRES review verdict
+    Orch->>LoopMonitor: Review verdict + batch results
     LoopMonitor-->>Orch: Status PROGRESSING
     
     alt STALLED
@@ -212,8 +197,8 @@ sequenceDiagram
 - `LoopGather` identifies independent subtasks (no unmet `depends_on`) as `ready_subtasks`
 - **Todo updates** mark subtasks as in-progress before dispatch
 - `Loop` dispatches **multiple `LoopImplement` calls in parallel**
-- **Parallel `LoopDecide` calls** record decisions from multiple outputs simultaneously
-- `LoopReview` checks all implementations against acceptance criteria
+- Agents write patterns and decisions directly to `learnings/` as they discover them
+- `LoopReview` reads `learnings/` directly to check all implementations against acceptance criteria and decisions
 - **Todo updates** mark approved subtasks as completed
 - `LoopMonitor` detects patterns: same error 3x = STALLED, metrics worsening = REGRESSING
 
@@ -235,10 +220,27 @@ sequenceDiagram
 **Checkpoint & Rollback Protocol:**
 - `LoopRollback` creates checkpoints after scaffold and each implementation batch
 - On REGRESSING/OSCILLATING, orchestrator calls `LoopRollback` to revert to last-good state
-- Every rollback records an **anti-pattern** in `/.loop/learnings/NNN-anti-pattern.md`
+- Every rollback records an **anti-pattern** in `/.loop/learnings/NNN-rollback-anti-pattern.md`
 - Anti-patterns capture what went wrong so `LoopGather` can prevent repeat failures
 
 After 2 failed recovery attempts, escalates to user with full context.
+
+---
+
+### ✅ Distributed Learning System
+
+Agents capture insights directly to `learnings/` as they work.
+
+| Agent | Writes | When | Bias |
+|-------|--------|------|------|
+| **LoopPlan** | `NNN-plan-decision.md` | Architectural choices, trade-offs | Record non-obvious choices |
+| **LoopScaffold** | `NNN-scaffold-decision.md` | Structure changes, module organization | Record non-obvious choices |
+| **LoopImplement** | `NNN-implement-pattern.md` | Gotchas, hidden constraints, rejection fixes | **Skip unless prevents mistake** |
+| **LoopReview** | `NNN-review-anti-pattern.md` | Critical/Major issues found | Record all blockers |
+| **LoopPlanReview** | `NNN-plan-review-rejection.md` | Why plans were sent back | Record revision reasons |
+| **LoopRollback** | `NNN-rollback-anti-pattern.md` | What caused regression/stall | Record all rollbacks |
+
+`LoopGather` synthesizes these into `context.md` so future agents benefit from past learnings.
 
 ---
 
@@ -249,16 +251,22 @@ Every significant choice is recorded with:
 ```markdown
 # Decision 001: Use JWT for Authentication
 
-**Context**: OAuth adds deployment complexity; users are technical
+**Date**: 2026-02-02
+**Status**: DECISION
+**Source**: plan
 
-**Choice**: JWT with short-lived tokens + refresh flow
+## Context
+OAuth adds deployment complexity; users are technical
 
-**Alternatives Rejected**:
+## Choice
+JWT with short-lived tokens + refresh flow
+
+## Alternatives Rejected
 - **OAuth 2.0**: Requires additional auth server, overkill for MVP
 - **Session cookies**: Harder to scale, complicates mobile apps
 
-**Depends On**: none
-**Invalidated If**: We add third-party login or non-technical users
+## Invalidated If
+We add third-party login or non-technical users
 ```
 
 `LoopGather` synthesizes these so future agents understand *why* decisions were made, preventing "code works but contradicts design" failures.
@@ -296,31 +304,29 @@ During implementation, independent subtasks run simultaneously:
 LoopGather → ready_subtasks: [1.1, 1.3, 2.2]
 📋 Mark subtasks in-progress
 
-[PARALLEL] LoopImplement(1.1) → output1
+[PARALLEL] LoopImplement(1.1) → output1, writes learnings/*.md if patterns found
 [PARALLEL] LoopImplement(1.3) → output2
 [PARALLEL] LoopImplement(2.2) → output3
 [WAIT ALL]
 
-[PARALLEL] LoopDecide(decisions from output1) → summaries1
-[PARALLEL] LoopDecide(decisions from output2) → summaries2
-[WAIT ALL]
-
-LoopReview batch + decisions:[summaries] → verdicts
+LoopReview batch (reads learnings/*.md) → verdicts
 📋 Mark approved subtasks completed
-LoopMonitor → status
+LoopMonitor (requires review verdict) → status
 ```
+
+**Critical sequence:** `LoopReview` MUST complete before `LoopMonitor`. The monitor validates review data exists and returns `BLOCKED: Missing batch review` if called without it. This prevents implementations from shipping without quality checks.
 
 **Parallel operations:**
 - Multiple `LoopImplement` calls (independent subtasks)
-- Multiple `LoopDecide` calls (independent decisions)
+- Multiple `LoopScaffold` calls (if plan has independent scaffold tasks)
 
 **Sequential operations (shared state):**
 - `LoopGather` — reads shared state from active task folder
-- `LoopMonitor` — needs all results
-- `LoopReview` — needs all implementations + inline decision summaries
+- `LoopReview` — needs all implementations + learnings (MUST run before monitor)
+- `LoopMonitor` — needs review verdict + batch results (enforces review requirement)
 - **Todo updates** — coordinated status tracking
 
-**No refresh between batches:** Decisions flow inline to LoopReview. LoopGather is only called at start of each new batch, not after LoopDecide.
+**No refresh between batches:** Learnings flow through files. LoopGather is only called at start of each new batch.
 
 ---
 
@@ -353,15 +359,12 @@ This lets users see orchestrator progress without reading log files or memory st
 | **Loop** | Orchestrator | agent, edit, askQuestions, todo | plan.md first line (for task list status) | {task}/loop-state.md (init only) |
 | **LoopGather** | Context synthesizer | read, edit, search, memory | {task}/plan.md, {task}/learnings/* | {task}/context.md |
 | **LoopMonitor** | Stall detector | search, read, edit | {task}/loop-state.md | {task}/loop-state.md |
-| **LoopDecide** | Decision recorder | read, edit | {task}/learnings/* (to get next ID) | {task}/learnings/NNN-*.md |
-| **LoopPlan** | Planner | read, search, edit, github/web_search | codebase, {task}/context.md | {task}/plan.md |
-| **LoopPlanReview** | Plan reviewer | read, edit, search, github/web_search | {task}/plan.md, {task}/context.md | Nothing (returns verdict) |
-| **LoopScaffold** | Scaffolder | all | {task}/plan.md, {task}/context.md, codebase | {task}/plan.md (checkboxes), code files |
-| **LoopImplement** | Implementer | all | {task}/plan.md, {task}/context.md, codebase | {task}/plan.md (checkboxes), code files |
-| **LoopReview** | Code reviewer | all | {task}/plan.md, {task}/context.md, codebase | {task}/report.md (final mode), {task}/learnings/*.md (anti-patterns) |
-| **LoopRollback** | Checkpoint/recovery | execute, read, edit | git history, {task}/plan.md | {task}/learnings/*.md, {task}/plan.md |
-
-All subagents (`user-invokable: false`) are invoked only by the orchestrator. Only `Loop` is user-facing (`disable-model-invocation: true` with handoffs).
+| **LoopPlan** | Planner | read, search, edit, github/web_search | codebase, {task}/context.md | {task}/plan.md, {task}/learnings/NNN-plan-decision.md |
+| **LoopPlanReview** | Plan reviewer | read, edit, search, github/web_search | {task}/plan.md, {task}/context.md, {task}/learnings/* | {task}/learnings/NNN-plan-review-rejection.md |
+| **LoopScaffold** | Scaffolder | all | {task}/plan.md, {task}/context.md, codebase | {task}/plan.md (checkboxes), code files, {task}/learnings/NNN-scaffold-decision.md |
+| **LoopImplement** | Implementer | all | {task}/plan.md, {task}/context.md, codebase | {task}/plan.md (checkboxes), code files, {task}/learnings/NNN-implement-pattern.md |
+| **LoopReview** | Code reviewer | all | {task}/plan.md, {task}/context.md, {task}/learnings/*, codebase | {task}/report.md (final mode), {task}/learnings/NNN-review-anti-pattern.md |
+| **LoopRollback** | Checkpoint/recovery | execute, read, edit | git history, {task}/plan.md | {task}/learnings/NNN-rollback-anti-pattern.md, {task}/plan.md |
 
 ---
 
