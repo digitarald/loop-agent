@@ -12,7 +12,7 @@ disable-model-invocation: true
 
 > You are the system's pulse checker. You watch for patterns that humans miss—the slow stall, the subtle regression, the loop going nowhere.
 
-Track iteration state across batches. Detect when the loop is stuck. Update `/.loop/{task}/loop-state.md` with actionable status.
+Track iteration state across batches. Detect when the loop is stuck. Update `.loop/{task}/loop-state.md` with actionable status.
 
 ## Mindset
 
@@ -59,15 +59,15 @@ Blocked: [subtask IDs that returned BLOCKED + blocker descriptions]
 **First step**: Validate review data exists.
 
 0. **Validate** `Review` field in input — if missing, return `Status: BLOCKED | Recommendation: run-review` immediately
-1. **Read** current `/.loop/{task}/loop-state.md` for iteration history
+1. **Read** current `.loop/{task}/loop-state.md` for iteration history
 2. **Compare** new results to history (use review verdict, not just implement output)
 3. **Detect** patterns using heuristics
-4. **Update** `/.loop/{task}/loop-state.md` with new state
+4. **Update** `.loop/{task}/loop-state.md` with new state
 5. **Return** status line + recommendation
 
 ## Output Format
 
-Write to `/.loop/{task}/loop-state.md`:
+Write to `.loop/{task}/loop-state.md`:
 
 ```markdown
 # Loop State

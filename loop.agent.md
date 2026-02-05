@@ -19,10 +19,10 @@ Orchestrate engineering tasks through a self-correcting loop with shared memory.
 
 ## Shared Memory Structure
 
-Each task gets its own folder under `/.loop/` with an auto-incremented, human-readable ID:
+Each task gets its own folder under `.loop/` with an auto-incremented, human-readable ID:
 
 ```
-/.loop/
+.loop/
 ├── 001-add-user-auth/    # First task
 │   ├── context.md        # Current context (LoopGather writes, subagents read)
 │   ├── plan.md           # Task breakdown + progress
@@ -46,16 +46,16 @@ Each task gets its own folder under `/.loop/` with an auto-incremented, human-re
 Before any action, determine which task to work on:
 
 1. **Parse user message** for task hints:
-   - Explicit ID: "continue 002-fix-bug" → `/.loop/002-fix-bug/`
-   - Partial match: "resume the auth task" → scan for `*auth*` in `/.loop/`
+   - Explicit ID: "continue 002-fix-bug" → `.loop/002-fix-bug/`
+   - Partial match: "resume the auth task" → scan for `*auth*` in `.loop/`
    - Descriptive: "keep working on dark mode" → scan for matching slug
 
 2. **If match found**: Use that task folder, pass path to LoopGather
 
-3. **If `/.loop/` is empty or doesn't exist**: Treat as new task request—proceed directly to Initialize
+3. **If `.loop/` is empty or doesn't exist**: Treat as new task request—proceed directly to Initialize
 
 4. **If no match or ambiguous** (and tasks exist):
-   - Scan `/.loop/` for all `NNN-*` folders
+   - Scan `.loop/` for all `NNN-*` folders
    - Read first line of each `plan.md` for status
    - Present list to user: `[NNN-slug] Status: DRAFT|APPROVED|IN_PROGRESS|COMPLETE`
    - Ask: "Which task should I continue, or describe a new task?"
@@ -67,7 +67,7 @@ Before any action, determine which task to work on:
 ```mermaid
 flowchart TD
     Start([Request]) --> Init
-    Init["Initialize /.loop/"] --> Gather
+    Init["Initialize .loop/"] --> Gather
     Gather["loop-gather<br/>synthesize context"] --> Plan
     
     subgraph Planning
@@ -107,14 +107,14 @@ flowchart TD
 
 When Task Resolution determines a **new task** is needed:
 
-1. **Scan for existing tasks**: List `/.loop/` to find existing `NNN-*` folders
+1. **Scan for existing tasks**: List `.loop/` to find existing `NNN-*` folders
 2. **Compute next ID**: Increment highest existing number (or start at 001)
 3. **Generate slug**: Extract 3-5 keywords from user request, kebab-case, max 40 chars
-4. **Create task folder**: `/.loop/NNN-slug/`
+4. **Create task folder**: `.loop/NNN-slug/`
 
 **New task structure:**
 ```
-/.loop/NNN-slug/
+.loop/NNN-slug/
 ├── context.md      (empty, LoopGather will populate)
 ├── plan.md         (empty, LoopPlan will populate)
 ├── loop-state.md   (initialized below)
@@ -135,7 +135,7 @@ Initialize `loop-state.md`:
 2. Continue from where that task left off
 
 **Listing tasks**: Handled by Task Resolution when no clear match. Or when user explicitly asks:
-1. Scan `/.loop/` for all `NNN-*` folders
+1. Scan `.loop/` for all `NNN-*` folders
 2. Read each task's `plan.md` first line for status
 3. Display: `[NNN-slug] Status: DRAFT|APPROVED|IN_PROGRESS|COMPLETE`
 
@@ -160,7 +160,7 @@ LoopPlanReview → reads {task}/context.md + learnings/*.md itself, returns verd
 
 **No refresh between Plan and PlanReview.** LoopPlan writes decisions directly to `learnings/`. LoopPlanReview reads them directly if needed.
 
-**Note**: `{task}` refers to the resolved task folder path (e.g., `/.loop/001-add-user-auth/`).
+**Note**: `{task}` refers to the resolved task folder path (e.g., `.loop/001-add-user-auth/`).
 
 **On NEEDS_CLARIFICATION:**
 1. LoopPlan returns `Status: NEEDS_CLARIFICATION` with `Questions: [list]`
@@ -293,7 +293,7 @@ When `loop-monitor` returns non-PROGRESSING:
 1. After scaffold review passes: `LoopRollback + operation:checkpoint + label:scaffold`
 2. After each successful batch: `LoopRollback + operation:checkpoint + label:batch-N + subtasks:[IDs]`
 3. On REGRESSING/FLIP-FLOPPING: `LoopRollback + operation:rollback` to restore last-good state
-4. After rollback, LoopRollback updates `/.loop/` state automatically
+4. After rollback, LoopRollback updates `.loop/` state automatically
 
 **Max retries**: 2 per status. After 2 failed recoveries, escalate to user with full context.
 
@@ -302,7 +302,7 @@ When `loop-monitor` returns non-PROGRESSING:
 When all subtasks complete:
 1. **📋 TODO:** Verify all todos are `completed`
 2. Call `loop-review` (final mode)
-3. Present `/.loop/report.md` to user
+3. Present `.loop/report.md` to user
 4. Await feedback
 
 **On CHANGES REQUESTED:** Re-dispatch failed items to LoopImplement with the review feedback, then repeat batch review. Never fix issues yourself.
@@ -361,4 +361,4 @@ When all subtasks complete:
 - Do NOT ignore LoopMonitor warnings
 - Escalate after 2 failed recovery attempts
 - Use `vscode/askQuestions` when human judgment needed for recovery strategy
-- Your edit tools are ONLY for creating the `/.loop/{task}/` folder structure during initialization
+- Your edit tools are ONLY for creating the `.loop/{task}/` folder structure during initialization

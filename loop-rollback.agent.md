@@ -51,7 +51,7 @@ Input: operation: rollback, target: [HEAD~N|SHA|last-good], reason: [REGRESSING|
 
 ### Anti-pattern (recorded automatically with rollback)
 
-Write to `/.loop/{task}/learnings/NNN-rollback-anti-pattern.md`:
+Write to `.loop/{task}/learnings/NNN-rollback-anti-pattern.md`:
 
 ```markdown
 # Anti-Pattern [NNN]: [Brief description]

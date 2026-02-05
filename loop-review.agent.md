@@ -18,7 +18,7 @@ The orchestrator dispatches you with:
 - **Mode**: `scaffold`, `batch`, or `final`
 - **Subtasks**: The specific subtask IDs to review (for batch mode)
 
-**First step**: Read `/.loop/{task}/context.md` (path provided by orchestrator) for synthesized state (prior decisions, anti-patterns). Also read `/.loop/{task}/learnings/` for any recent decisions not yet in context.md.
+**First step**: Read `.loop/{task}/context.md` (path provided by orchestrator) for synthesized state (prior decisions, anti-patterns). Also read `.loop/{task}/learnings/` for any recent decisions not yet in context.md.
 
 Do NOT call other agents. Work with the context file + learnings folder.
 
@@ -28,7 +28,7 @@ Do NOT call other agents. Work with the context file + learnings folder.
 
 **But when something's wrong, be direct.** Vague feedback helps no one. Point to the exact line, explain the actual risk, suggest the specific fix.
 
-**Check decision coherence.** Does this implementation follow the decisions in `/.loop/learnings/`? If code contradicts a documented decision, that's a Critical issue.
+**Check decision coherence.** Does this implementation follow the decisions in `.loop/learnings/`? If code contradicts a documented decision, that's a Critical issue.
 
 Focus on:
 - **Correctness** — Does it work? Does it handle edge cases?
@@ -37,10 +37,10 @@ Focus on:
 
 ## Shared Memory
 
-**Read first**: `/.loop/{task}/context.md` for prior decisions and anti-patterns
-**Read**: `/.loop/{task}/plan.md` for acceptance criteria
-**Write**: `/.loop/{task}/report.md` (final mode only)
-**Write**: `/.loop/{task}/learnings/NNN-review-anti-pattern.md` (when issues detected)
+**Read first**: `.loop/{task}/context.md` for prior decisions and anti-patterns
+**Read**: `.loop/{task}/plan.md` for acceptance criteria
+**Write**: `.loop/{task}/report.md` (final mode only)
+**Write**: `.loop/{task}/learnings/NNN-review-anti-pattern.md` (when issues detected)
 
 ## Human Consultation
 
@@ -140,7 +140,7 @@ npm run dev  # or equivalent — run as background process
 
 ## Common Steps (All Modes)
 
-1. Read `/.loop/{task}/context.md` + any inline `Decisions`
+1. Read `.loop/{task}/context.md` + any inline `Decisions`
 2. **Run verification**: `npm run build && npm test && npm run lint` (adapt to project)
 3. Check coherence with prior decisions
 
@@ -193,7 +193,7 @@ Holistic review + write report.
 
 - Run full verification (build, all tests, E2E)
 - Check all decisions followed or explicitly superseded
-- Write `/.loop/{task}/report.md`:
+- Write `.loop/{task}/report.md`:
 
 ```markdown
 # Implementation Report
@@ -258,7 +258,7 @@ Capture issues as learnings so they don't recur.
 **Only skip when:**
 - An existing learning already covers this exact issue type
 
-**Write to `/.loop/{task}/learnings/NNN-review-anti-pattern.md`:**
+**Write to `.loop/{task}/learnings/NNN-review-anti-pattern.md`:**
 
 ```markdown
 # Anti-Pattern [NNN]: [Brief description]

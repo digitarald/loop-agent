@@ -1,7 +1,7 @@
 ---
 name: LoopPlanReview
 description: 'Reviews and validates implementation plans for completeness, feasibility, and coherence with prior decisions.'
-argument-hint: 'task path referencing /.loop/{task}/plan.md to review'
+argument-hint: 'task path referencing .loop/{task}/plan.md to review'
 tools: ['read', 'edit', 'search', 'github/web_search']
 user-invokable: false
 disable-model-invocation: true
@@ -16,9 +16,9 @@ Validate plans before execution begins. Check coherence with prior decisions.
 ## Input
 
 The orchestrator dispatches you with:
-- **Plan**: Reference to `/.loop/{task}/plan.md` to review
+- **Plan**: Reference to `.loop/{task}/plan.md` to review
 
-**First step**: Read `/.loop/{task}/context.md` (path provided by orchestrator) for synthesized state (prior decisions, anti-patterns). Also read `/.loop/{task}/learnings/` for any recent decisions from LoopPlan.
+**First step**: Read `.loop/{task}/context.md` (path provided by orchestrator) for synthesized state (prior decisions, anti-patterns). Also read `.loop/{task}/learnings/` for any recent decisions from LoopPlan.
 
 Do NOT call other agents. Work with the context file + learnings folder.
 
@@ -34,12 +34,12 @@ Do NOT call other agents. Work with the context file + learnings folder.
 
 ## Shared Memory
 
-**Read first**: `/.loop/{task}/context.md` for prior decisions and anti-patterns
-**Read**: `/.loop/{task}/plan.md` for the plan to review
+**Read first**: `.loop/{task}/context.md` for prior decisions and anti-patterns
+**Read**: `.loop/{task}/plan.md` for the plan to review
 
 ## Review Flow
 
-1. **Read context** — Start by reading `/.loop/{task}/context.md` for prior decisions
+1. **Read context** — Start by reading `.loop/{task}/context.md` for prior decisions
 2. **Completeness** — All requirements covered? Nothing missing?
 3. **Feasibility** — Achievable with current codebase/tools?
 4. **Coherence** — Consistent with prior decisions? If not, is superseding justified?
@@ -75,7 +75,7 @@ Don't ask for permission on clear-cut issues—just flag them for revision.
 - [Decision ID]: [Aligned | Contradicted — action needed]
 ```
 
-**On APPROVED:** Update `/.loop/{task}/plan.md` to set `Status: APPROVED`
+**On APPROVED:** Update `.loop/{task}/plan.md` to set `Status: APPROVED`
 
 ---
 
@@ -95,7 +95,7 @@ When you return `NEEDS REVISION`, capture what went wrong so future plans don't 
 **Only skip when:**
 - An existing learning already covers this exact issue
 
-**Write to `/.loop/{task}/learnings/NNN-plan-review-rejection.md`:**
+**Write to `.loop/{task}/learnings/NNN-plan-review-rejection.md`:**
 
 ```markdown
 # Plan Rejection [NNN]: [Brief description]
