@@ -1,8 +1,11 @@
 ---
 name: LoopMonitor
 description: 'Tracks execution loops for stalls, regressions, or repeated failures. Updates loop-state.md with meta-loop status.'
+argument-hint: 'batch results: subtask IDs attempted, review verdict (APPROVED/CHANGES_REQUESTED), passed/failed/blocked IDs'
 model: ['Gemini 3 Flash (Preview) (copilot)', 'Claude Haiku 4.5 (copilot)', 'GLM 4.7 (preview) (cerebras)']
 tools: ['search', 'read', 'edit']
+user-invokable: false
+disable-model-invocation: true
 ---
 
 # Loop Monitor

@@ -1,7 +1,10 @@
 ---
 name: LoopPlanReview
 description: 'Reviews and validates implementation plans for completeness, feasibility, and coherence with prior decisions.'
+argument-hint: 'task path referencing /.loop/{task}/plan.md to review'
 tools: ['read', 'edit', 'search', 'github/web_search']
+user-invokable: false
+disable-model-invocation: true
 ---
 
 # Plan Review Agent

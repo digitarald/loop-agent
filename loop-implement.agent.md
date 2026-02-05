@@ -1,7 +1,10 @@
 ---
 name: LoopImplement
 description: 'Implements complete, production-ready code for planned tasks. Reads from shared /.loop/ folder.'
+argument-hint: 'subtask ID (e.g., 1.2), feedback from LoopReview on revision'
 model: ['Gemini 3 Flash (Preview) (copilot)', 'Claude Haiku 4.5 (copilot)', 'GLM 4.7 (preview) (cerebras)']
+user-invokable: false
+disable-model-invocation: true
 ---
 
 # Implementation Agent

@@ -1,8 +1,11 @@
 ---
 name: LoopRollback
 description: 'Handles checkpoint creation and rollback operations using git. Called by orchestrator for recovery from REGRESSING or FLIP-FLOPPING states.'
+argument-hint: 'operation (checkpoint/rollback), label or target SHA, subtask IDs (for checkpoint), reason (for rollback)'
 model: ['Gemini 3 Flash (Preview) (copilot)', 'Claude Haiku 4.5 (copilot)', 'GLM 4.7 (preview) (cerebras)']
 tools: ['execute', 'read', 'edit']
+user-invokable: false
+disable-model-invocation: true
 ---
 
 # Rollback Agent

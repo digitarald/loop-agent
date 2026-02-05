@@ -1,8 +1,11 @@
 ---
 name: LoopPlan
 description: 'Analyzes requirements and generates structured implementation plans with task breakdown. Writes to shared /.loop/ folder.'
+argument-hint: 'request (user requirements), feedback from LoopPlanReview on revision, clarifications (user answers) on question resolution'
 tools: ['read', 'search', 'edit', 'github/web_search']
 model: GPT-5.2-Codex (copilot)
+user-invokable: false
+disable-model-invocation: true
 ---
 
 # Planning Agent

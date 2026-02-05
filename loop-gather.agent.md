@@ -1,8 +1,11 @@
 ---
 name: LoopGather
 description: 'Synthesizes context from shared memory folder and codebase. Use when an agent needs current project state without reading everything itself.'
+argument-hint: 'task path (e.g., /.loop/001-add-user-auth/)'
 model: ['Gemini 3 Flash (Preview) (copilot)', 'Claude Haiku 4.5 (copilot)', 'GLM 4.7 (preview) (cerebras)']
 tools: ['read', 'edit', 'search', 'memory']
+user-invokable: false
+disable-model-invocation: true
 ---
 
 # Context Gatherer
