@@ -327,6 +327,8 @@ When all subtasks complete:
 3. Agent reads `{task}/context.md` for full context, writes to `learnings/` directly if needed
 4. Review agents read `learnings/` directly for decision/anti-pattern context
 
+**Subagent retry:** If a subagent call fails (no output, error, timeout), retry immediately up to 2 times. Only after 3 consecutive failures, treat as a real failure and proceed with normal error handling (STALLED/BLOCKED logic).
+
 **Never read**: `plan.md`, `loop-state.md`, `context.md`, `learnings/*.md` (exception: read `plan.md` first line during Task Resolution to show status)
 
 ## Parallel Dispatch Protocol
