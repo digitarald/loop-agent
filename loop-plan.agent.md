@@ -4,7 +4,7 @@ description: 'Analyzes requirements and generates structured implementation plan
 argument-hint: 'request (user requirements), feedback from LoopPlanReview on revision, clarifications (user answers) on question resolution'
 tools: ['read', 'search', 'github/web_search', 'vscode/memory']
 model: GPT-5.2-Codex (copilot)
-user-invokable: false
+user-invocable: false
 disable-model-invocation: true
 ---
 

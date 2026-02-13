@@ -2,7 +2,7 @@
 name: LoopReview
 description: 'Reviews implemented code for quality, correctness, and coherence with prior decisions.'
 argument-hint: 'mode (scaffold/batch/final), subtask IDs to review (for batch mode)'
-user-invokable: false
+user-invocable: false
 disable-model-invocation: true
 ---
 

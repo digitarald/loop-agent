@@ -2,7 +2,7 @@
 name: LoopScaffold
 description: 'Creates minimal viable implementations to validate architecture before full development. Reads from shared /memories/session/loop/ folder.'
 argument-hint: 'subtask ID (e.g., 1.1), feedback from LoopReview on revision'
-user-invokable: false
+user-invocable: false
 disable-model-invocation: true
 ---
 

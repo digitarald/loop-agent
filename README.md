@@ -2,6 +2,14 @@
 
 > A meta-loop orchestrator for VS Code that ensures multi-agent engineering workflows converge, maintain coherence, and recover from stalls.
 
+```sh
+npx github:digitarald/loop-agent
+```
+
+Copies all Loop agent files into `.github/agents/` in your project. Already installed? Run with `upgrade` to pull the latest.
+
+---
+
 ## Why Loop Exists
 
 Multi-agent AI systems are powerful—they can complete 50k+ line codebases in days—but they have two critical problems:
@@ -28,6 +36,7 @@ flowchart TB
     
     Loop --> LG[LoopGather]
     Loop --> LM[LoopMonitor]
+    Loop --> LC[LoopCurate]
     
     Loop --> LP[LoopPlan]
     Loop --> LPR[LoopPlanReview]
@@ -49,6 +58,8 @@ flowchart TB
     
     LI -.results.-> LM
     LM -.recovery.-> LRB
+    
+    LC -.curated.-> LG
     
     style Loop fill:#e1f5ff
     style Resolve fill:#f0f0f0
@@ -240,7 +251,7 @@ Agents capture insights directly to `learnings/` as they work.
 | **LoopPlanReview** | `NNN-plan-review-rejection.md` | Why plans were sent back | Record revision reasons |
 | **LoopRollback** | `NNN-rollback-anti-pattern.md` | What caused regression/stall | Record all rollbacks |
 
-`LoopGather` synthesizes these into `context.md` so future agents benefit from past learnings.
+`LoopGather` synthesizes these into `context.md` so future agents benefit from past learnings. `LoopCurate` periodically consolidates the folder — merging duplicates, marking superseded entries, and pruning completed patterns — so `LoopGather` reads signal instead of noise.
 
 ---
 
@@ -371,6 +382,7 @@ This lets users see orchestrator progress without reading log files or memory st
 | **LoopImplement** | Implementer | all | {task}/plan.md, {task}/context.md, codebase | {task}/plan.md (checkboxes), code files, {task}/learnings/NNN-implement-pattern.md |
 | **LoopReview** | Code reviewer | all | {task}/plan.md, {task}/context.md, {task}/learnings/*, codebase | {task}/report.md (final mode), {task}/learnings/NNN-review-anti-pattern.md |
 | **LoopRollback** | Checkpoint/recovery | execute, read, vscode/memory | git history, {task}/plan.md | {task}/learnings/NNN-rollback-anti-pattern.md, {task}/plan.md |
+| **LoopCurate** | Learnings curator | vscode/memory | {task}/learnings/* | {task}/learnings/* (merged/pruned) |
 
 **Model tier routing:** Agents are assigned to cost-appropriate models. Cheap/fast models (Gemini 3 Flash, Claude Haiku 4.5, GLM 4.7) handle context gathering, implementation, monitoring, and rollback. Expensive models (GPT-5.2-Codex) handle planning where reasoning quality matters most.
 
@@ -408,6 +420,7 @@ The orchestrator will:
 7. Implement in parallel batches with `LoopImplement` (todos update: in-progress → completed)
 8. Monitor for stalls with `LoopMonitor`
 9. Generate final report with `LoopReview`
+10. Curate learnings with `LoopCurate` before commit
 
 All reasoning is preserved in `/memories/session/loop/{task}/learnings/` for future reference.
 

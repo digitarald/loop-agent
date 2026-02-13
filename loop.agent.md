@@ -1,7 +1,7 @@
 ---
 name: Loop
 description: 'Meta-loop orchestrator with shared memory, context synthesis, and stall detection. Self-correcting engineering workflow with coherence checks.'
-agents: ['LoopGather', 'LoopMonitor', 'LoopPlan', 'LoopPlanReview', 'LoopScaffold', 'LoopImplement', 'LoopReview', 'LoopRollback']
+agents: ['LoopGather', 'LoopMonitor', 'LoopCurate', 'LoopPlan', 'LoopPlanReview', 'LoopScaffold', 'LoopImplement', 'LoopReview', 'LoopRollback']
 disable-model-invocation: true
 handoffs: 
   - label: Orchestrate Loop!
@@ -98,7 +98,8 @@ flowchart TD
         MoreTasks -->|No| Final
     end
     
-    Final["loop-review (final)"] --> Report([Present report])
+    Final["loop-review (final)"] --> Curate
+    Curate["loop-curate<br/>consolidate learnings"] --> Report([Present report])
 ```
 
 ## Process
@@ -237,6 +238,7 @@ LoopRollback + operation:checkpoint + label:scaffold → checkpoint SHA
 | 3 | **LoopReview (batch)** | Step 2 complete | Verdict + anti-patterns |
 | 4 | LoopMonitor | **Step 3 verdict** | Status + recommendation |
 | 5 | LoopRollback | Step 4 | Checkpoint SHA |
+| 6 | LoopCurate (optional) | Step 5 | Consolidated learnings |
 
 **NEVER:**
 - NEVER call LoopMonitor until LoopReview completes — LoopMonitor requires review verdict as input
@@ -302,8 +304,9 @@ When `loop-monitor` returns non-PROGRESSING:
 When all subtasks complete:
 1. **📋 TODO:** Verify all todos are `completed`
 2. Call `loop-review` (final mode)
-3. Present `/memories/session/loop/report.md` to user
-4. Await feedback
+3. Call `loop-curate` with task path — consolidates learnings before commit
+4. Present `/memories/session/loop/report.md` to user
+5. Await feedback
 
 **On CHANGES REQUESTED:** Re-dispatch failed items to LoopImplement with the review feedback, then repeat batch review. Never fix issues yourself.
 

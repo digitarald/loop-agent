@@ -4,7 +4,7 @@ description: 'Handles checkpoint creation and rollback operations using git. Cal
 argument-hint: 'operation (checkpoint/rollback), label or target SHA, subtask IDs (for checkpoint), reason (for rollback)'
 model: ['Gemini 3 Flash (Preview) (copilot)', 'Claude Haiku 4.5 (copilot)', 'GLM 4.7 (preview) (cerebras)']
 tools: ['execute', 'read', 'vscode/memory']
-user-invokable: false
+user-invocable: false
 disable-model-invocation: true
 ---
 

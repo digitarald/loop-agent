@@ -3,7 +3,7 @@ name: LoopPlanReview
 description: 'Reviews and validates implementation plans for completeness, feasibility, and coherence with prior decisions.'
 argument-hint: 'task path referencing /memories/session/loop/{task}/plan.md to review'
 tools: ['read', 'search', 'github/web_search', 'vscode/memory']
-user-invokable: false
+user-invocable: false
 disable-model-invocation: true
 ---
 

@@ -1,0 +1,27 @@
+{
+  "name": "@digitarald/loop-agent",
+  "version": "0.1.0",
+  "description": "Self-correcting multi-agent orchestration for VS Code",
+  "bin": {
+    "loop-agent": "./install.js"
+  },
+  "files": [
+    "install.js",
+    "loop.agent.md",
+    "loop-*.agent.md"
+  ],
+  "keywords": [
+    "ai",
+    "agents",
+    "copilot",
+    "loop",
+    "orchestration",
+    "multi-agent"
+  ],
+  "author": "digitarald",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/digitarald/loop-agent"
+  }
+}

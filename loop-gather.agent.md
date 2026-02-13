@@ -4,7 +4,7 @@ description: 'Synthesizes context from shared memory folder and codebase. Use wh
 argument-hint: 'task path (e.g., /memories/session/loop/001-add-user-auth/)'
 model: ['Gemini 3 Flash (Preview) (copilot)', 'Claude Haiku 4.5 (copilot)', 'GLM 4.7 (preview) (cerebras)']
 tools: ['read', 'search', 'vscode/memory']
-user-invokable: false
+user-invocable: false
 disable-model-invocation: true
 ---
 
@@ -43,7 +43,7 @@ When called, receive the task path from the orchestrator (e.g., `/memories/sessi
 
 1. **Receive task path** — Orchestrator provides path (e.g., `/memories/session/loop/001-add-user-auth/`)
 2. **Read status** — First line of `{task}/plan.md` for current phase
-3. **Scan learnings** — List `{task}/learnings/` and read relevant ones
+3. **Scan learnings** — List `{task}/learnings/` and read relevant ones (skip files marked `Status: SUPERSEDED`). Note the total file count.
 4. **Check for anti-patterns** — Look for `Status: ANTI-PATTERN` files (from rollbacks or reviews)
 5. **Search codebase** — Find existing patterns, files, and implementation state relevant to current subtask
 6. **Synthesize** — Build context snapshot of current repo state, surfacing anti-patterns prominently
@@ -78,6 +78,7 @@ When called, receive the task path from the orchestrator (e.g., `/memories/sessi
 
 ## Blockers
 [Missing prerequisites, broken builds, unresolved conflicts]
+[If learnings/ has >10 files: ⚠️ Learnings: N files — curation recommended]
 ```
 
 **Ready Subtasks rules:**

@@ -1,0 +1,10 @@
+# Dev/repo files excluded from the distributed package
+# Shipped: install.js, loop*.agent.md
+# (also enforced by package.json "files" field)
+
+.github/
+.vscode/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
