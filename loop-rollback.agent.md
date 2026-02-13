@@ -3,7 +3,7 @@ name: LoopRollback
 description: 'Handles checkpoint creation and rollback operations using git. Called by orchestrator for recovery from REGRESSING or FLIP-FLOPPING states.'
 argument-hint: 'operation (checkpoint/rollback), label or target SHA, subtask IDs (for checkpoint), reason (for rollback)'
 model: ['Gemini 3 Flash (Preview) (copilot)', 'Claude Haiku 4.5 (copilot)', 'GLM 4.7 (preview) (cerebras)']
-tools: ['execute', 'read', 'edit']
+tools: ['execute', 'read', 'vscode/memory']
 user-invokable: false
 disable-model-invocation: true
 ---
@@ -28,7 +28,7 @@ Manage git-based checkpoints and rollbacks for the loop system.
 Input: operation: checkpoint, label: [scaffold|batch-N], subtasks: [IDs]
 ```
 
-1. Stage code + learnings: `git add -A .loop/*/learnings/ ':!.loop/*/context.md' ':!.loop/*/loop-state.md'`
+1. Stage code + learnings: `git add -A /memories/session/loop/*/learnings/ ':!/memories/session/loop/*/context.md' ':!/memories/session/loop/*/loop-state.md'`
 2. `git commit -m "checkpoint: [label] - [subtasks]"`
 3. Return: `Checkpoint: [SHA] | Label: [label] | Subtasks: [IDs]`
 
@@ -40,7 +40,7 @@ Input: operation: rollback, target: [HEAD~N|SHA|last-good], reason: [REGRESSING|
 
 1. Find target: `git log --oneline --grep="checkpoint:" -1` (if last-good)
 2. **Preserve learnings**: Copy current `learnings/` to temp location
-3. Revert code only: `git revert --no-commit HEAD~N..HEAD -- ':!.loop/*/learnings/'`
+3. Revert code only: `git revert --no-commit HEAD~N..HEAD -- ':!/memories/session/loop/*/learnings/'`
 4. **Restore learnings**: Copy preserved learnings back (includes all prior decisions)
 5. Record new anti-pattern (see below)
 6. Commit all: `git commit -m "rollback: [reason] - preserved learnings"`
@@ -51,7 +51,7 @@ Input: operation: rollback, target: [HEAD~N|SHA|last-good], reason: [REGRESSING|
 
 ### Anti-pattern (recorded automatically with rollback)
 
-Write to `.loop/{task}/learnings/NNN-rollback-anti-pattern.md`:
+Write to `/memories/session/loop/{task}/learnings/NNN-rollback-anti-pattern.md`:
 
 ```markdown
 # Anti-Pattern [NNN]: [Brief description]

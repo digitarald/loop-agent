@@ -13,7 +13,7 @@ Multi-agent AI systems are powerful—they can complete 50k+ line codebases in d
 Loop solves both by adding:
 - **Meta-loop monitoring** that watches agent batches for stalls, regressions, and oscillations
 - **Shared memory with decision trails** that preserves architectural reasoning across iterations
-- **Fully thin orchestration** where no agent reads full files—context is synthesized on demand
+- **Fully thin orchestration** where the orchestrator never reads files directly—context synthesis is delegated to `LoopGather`
 
 ---
 
@@ -58,10 +58,10 @@ flowchart TB
 
 ### Shared Memory Structure
 
-Each task gets its own folder under `/.loop/` with an auto-incremented, human-readable ID:
+Each task gets its own folder under `/memories/session/loop/` with an auto-incremented, human-readable ID:
 
 ```
-/.loop/
+/memories/session/loop/
 ├── 001-add-user-auth/    # First task
 │   ├── context.md        # Synthesized context for agents
 │   ├── plan.md           # Task breakdown + progress checkboxes
@@ -111,12 +111,12 @@ sequenceDiagram
     User->>Orch: Request (may include task hint)
     
     alt Task hint found
-        Orch->>Orch: Resolve to /.loop/NNN-slug/
+        Orch->>Orch: Resolve to /memories/session/loop/NNN-slug/
     else No match or ambiguous
         Orch->>User: List tasks, ask which to continue
         User->>Orch: Pick task or describe new
     else New task
-        Orch->>Orch: Create /.loop/NNN-slug/
+        Orch->>Orch: Create /memories/session/loop/NNN-slug/
     end
     
     Orch->>LoopGather: Get current state (task path)
@@ -220,7 +220,7 @@ sequenceDiagram
 **Checkpoint & Rollback Protocol:**
 - `LoopRollback` creates checkpoints after scaffold and each implementation batch
 - On REGRESSING/OSCILLATING, orchestrator calls `LoopRollback` to revert to last-good state
-- Every rollback records an **anti-pattern** in `/.loop/learnings/NNN-rollback-anti-pattern.md`
+- Every rollback records an **anti-pattern** in `/memories/session/loop/learnings/NNN-rollback-anti-pattern.md`
 - Anti-patterns capture what went wrong so `LoopGather` can prevent repeat failures
 
 After 2 failed recovery attempts, escalates to user with full context.
@@ -279,7 +279,7 @@ The orchestrator **never reads files directly**:
 
 ```mermaid
 flowchart LR
-    A[Orchestrator calls LoopGather] --> B["LoopGather reads /.loop/task-folder/"]
+    A[Orchestrator calls LoopGather] --> B["LoopGather reads /memories/session/loop/task-folder/"]
     B --> C[LoopGather returns context summary]
     C --> D[Orchestrator passes context to LoopPlan]
     
@@ -293,6 +293,12 @@ Benefits:
 - Orchestrator stays simple—no parsing logic
 - Context synthesis is isolated and testable
 - Shared memory protocol is explicit
+
+---
+
+### ✅ Visual Verification
+
+`LoopReview` goes beyond build/test checks—for web projects, it starts the dev server, opens the app in a browser, takes screenshots, and checks the console for errors. This catches issues invisible to linters and type checkers: module format mismatches, PostCSS/Tailwind compilation failures, missing runtime dependencies, and layout/rendering problems.
 
 ---
 
@@ -356,15 +362,17 @@ This lets users see orchestrator progress without reading log files or memory st
 
 | Agent | Role | Tools | Reads | Writes |
 |-------|------|-------|-------|--------|
-| **Loop** | Orchestrator | agent, edit, askQuestions, todo | plan.md first line (for task list status) | {task}/loop-state.md (init only) |
-| **LoopGather** | Context synthesizer | read, edit, search, memory | {task}/plan.md, {task}/learnings/* | {task}/context.md |
-| **LoopMonitor** | Stall detector | search, read, edit | {task}/loop-state.md | {task}/loop-state.md |
-| **LoopPlan** | Planner | read, search, edit, github/web_search | codebase, {task}/context.md | {task}/plan.md, {task}/learnings/NNN-plan-decision.md |
-| **LoopPlanReview** | Plan reviewer | read, edit, search, github/web_search | {task}/plan.md, {task}/context.md, {task}/learnings/* | {task}/learnings/NNN-plan-review-rejection.md |
+| **Loop** | Orchestrator | agent, read, search, todo, vscode/askQuestions, vscode/memory | plan.md first line (for task list status) | {task}/loop-state.md (init only) |
+| **LoopGather** | Context synthesizer | read, search, vscode/memory | {task}/plan.md, {task}/learnings/* | {task}/context.md |
+| **LoopMonitor** | Stall detector | search, read, vscode/memory | {task}/loop-state.md | {task}/loop-state.md |
+| **LoopPlan** | Planner | read, search, github/web_search, vscode/memory | codebase, {task}/context.md | {task}/plan.md, {task}/learnings/NNN-plan-decision.md |
+| **LoopPlanReview** | Plan reviewer | read, search, github/web_search, vscode/memory | {task}/plan.md, {task}/context.md, {task}/learnings/* | {task}/learnings/NNN-plan-review-rejection.md |
 | **LoopScaffold** | Scaffolder | all | {task}/plan.md, {task}/context.md, codebase | {task}/plan.md (checkboxes), code files, {task}/learnings/NNN-scaffold-decision.md |
 | **LoopImplement** | Implementer | all | {task}/plan.md, {task}/context.md, codebase | {task}/plan.md (checkboxes), code files, {task}/learnings/NNN-implement-pattern.md |
 | **LoopReview** | Code reviewer | all | {task}/plan.md, {task}/context.md, {task}/learnings/*, codebase | {task}/report.md (final mode), {task}/learnings/NNN-review-anti-pattern.md |
-| **LoopRollback** | Checkpoint/recovery | execute, read, edit | git history, {task}/plan.md | {task}/learnings/NNN-rollback-anti-pattern.md, {task}/plan.md |
+| **LoopRollback** | Checkpoint/recovery | execute, read, vscode/memory | git history, {task}/plan.md | {task}/learnings/NNN-rollback-anti-pattern.md, {task}/plan.md |
+
+**Model tier routing:** Agents are assigned to cost-appropriate models. Cheap/fast models (Gemini 3 Flash, Claude Haiku 4.5, GLM 4.7) handle context gathering, implementation, monitoring, and rollback. Expensive models (GPT-5.2-Codex) handle planning where reasoning quality matters most.
 
 ---
 
@@ -392,7 +400,7 @@ Build a REST API with JWT authentication
 
 The orchestrator will:
 1. Resolve task from user message (or list existing tasks and ask)
-2. Initialize `/.loop/NNN-slug/` structure for a new task
+2. Initialize `/memories/session/loop/NNN-slug/` structure for a new task
 3. Call `LoopGather` with the task path to check for existing state
 4. Delegate to `LoopPlan` → `LoopPlanReview`
 5. **Create todo items** for all subtasks (tracked in VS Code UI throughout execution)
@@ -401,7 +409,7 @@ The orchestrator will:
 8. Monitor for stalls with `LoopMonitor`
 9. Generate final report with `LoopReview`
 
-All reasoning is preserved in `/.loop/{task}/learnings/` for future reference.
+All reasoning is preserved in `/memories/session/loop/{task}/learnings/` for future reference.
 
 ### Task Management
 
@@ -429,7 +437,6 @@ All reasoning is preserved in `/.loop/{task}/learnings/` for future reference.
 
 ## Future Extensions
 
-- **Cost tracking** — Add `LoopCost` agent for tier routing (Haiku → Sonnet → Opus)
 - **Cross-session resume** — Serialize full agent state for pause/resume
 - **Learning across runs** — Persist "agent X is best for task type Y" patterns
 - **Decision conflict detection** — Automatic flagging when code contradicts decisions

@@ -1,6 +1,6 @@
 ---
 name: LoopScaffold
-description: 'Creates minimal viable implementations to validate architecture before full development. Reads from shared .loop/ folder.'
+description: 'Creates minimal viable implementations to validate architecture before full development. Reads from shared /memories/session/loop/ folder.'
 argument-hint: 'subtask ID (e.g., 1.1), feedback from LoopReview on revision'
 user-invokable: false
 disable-model-invocation: true
@@ -18,7 +18,7 @@ The orchestrator dispatches you with:
 - **Subtask**: The specific subtask ID to scaffold
 - **Feedback** (on revision): Review feedback from LoopReview
 
-**First step**: Read `.loop/{task}/context.md` (path provided by orchestrator) for synthesized state (prior decisions, patterns, anti-patterns).
+**First step**: Read `/memories/session/loop/{task}/context.md` (path provided by orchestrator) for synthesized state (prior decisions, patterns, anti-patterns).
 
 Do NOT call other agents. Work with the context file.
 
@@ -34,27 +34,27 @@ Do NOT call other agents. Work with the context file.
 
 ## Shared Memory
 
-**Read first**: `.loop/{task}/context.md` for prior decisions and patterns
-**Read**: `.loop/{task}/plan.md` for subtask details
-**Update**: Mark `[x]` in `.loop/{task}/plan.md` when done (your subtask only)
-**Write decisions to**: `.loop/{task}/learnings/NNN-scaffold-decision.md` (when structure decisions are made)
+**Read first**: `/memories/session/loop/{task}/context.md` for prior decisions and patterns
+**Read**: `/memories/session/loop/{task}/plan.md` for subtask details
+**Update**: Mark `[x]` in `/memories/session/loop/{task}/plan.md` when done (your subtask only)
+**Write decisions to**: `/memories/session/loop/{task}/learnings/NNN-scaffold-decision.md` (when structure decisions are made)
 
 ## Process
 
-1. **Read context** — Start by reading `.loop/{task}/context.md`
-2. **Read** subtask from `.loop/{task}/plan.md`
+1. **Read context** — Start by reading `/memories/session/loop/{task}/context.md`
+2. **Read** subtask from `/memories/session/loop/{task}/plan.md`
 3. **Create** files, types, exports
 4. **Wire** imports and connections
 5. **Stub** with `// TODO: [description]`
 6. **Verify** no compile errors
 7. **Record decision** — If structure differs from plan, write to `learnings/`
-8. **Update** — Mark `[x]` in `.loop/{task}/plan.md`
+8. **Update** — Mark `[x]` in `/memories/session/loop/{task}/plan.md`
 
 ## When to Record Decisions
 
 **Bias: When in doubt, record.** An extra learning costs nothing; a missed insight costs future iterations.
 
-Write directly to `.loop/{task}/learnings/NNN-scaffold-decision.md` when you:
+Write directly to `/memories/session/loop/{task}/learnings/NNN-scaffold-decision.md` when you:
 - Discover the planned structure won't work and need to adjust
 - Choose between multiple valid file/module organizations
 - Establish a pattern that implementation agents should follow
