@@ -2,7 +2,8 @@
 name: LoopImplement
 description: 'Implements complete, production-ready code for planned tasks. Reads from shared /memories/session/loop/ folder.'
 argument-hint: 'subtask ID (e.g., 1.2), feedback from LoopReview on revision'
-model: ['Gemini 3 Flash (Preview) (copilot)', 'Claude Haiku 4.5 (copilot)', 'GLM 4.7 (preview) (cerebras)']
+model: ['Gemini 3 Flash (Preview) (copilot)', 'Claude Haiku 4.5 (copilot)']
+tools: [vscode/memory, execute, read, agent, edit, search, web, todo]
 user-invocable: false
 disable-model-invocation: true
 ---
@@ -19,7 +20,7 @@ The orchestrator dispatches you with:
 - **Subtask**: The specific subtask ID to implement with acceptance criteria
 - **Feedback** (on revision): Review feedback from LoopReview
 
-**First step**: Read `/memories/session/loop/{task}/context.md` (path provided by orchestrator) for synthesized state (prior decisions, patterns, anti-patterns).
+**First step**: Read `/memories/session/loop/context.md` for synthesized state (prior decisions, patterns, anti-patterns).
 
 Do NOT call other agents. Work with the context file.
 
@@ -35,20 +36,20 @@ Do NOT call other agents. Work with the context file.
 
 ## Shared Memory
 
-**Read first**: `/memories/session/loop/{task}/context.md` for prior decisions and patterns
-**Read**: `/memories/session/loop/{task}/plan.md` for subtask and acceptance criteria
-**Update**: Mark `[x]` in `/memories/session/loop/{task}/plan.md` when done (your subtask only)
-**Write learnings to**: `/memories/session/loop/{task}/learnings/NNN-implement-pattern.md` (patterns discovered during implementation)
+**Read first**: `/memories/session/loop/context.md` for prior decisions and patterns
+**Read**: `/memories/session/loop/plan.md` for subtask and acceptance criteria
+**Update**: Mark `[x]` in `/memories/session/loop/plan.md` when done (your subtask only)
+**Write learnings to**: `/memories/session/loop/learnings/NNN-implement-pattern.md` (patterns discovered during implementation)
 
 ## Process
 
-1. **Read context** — Start by reading `/memories/session/loop/{task}/context.md`
+1. **Read context** — Start by reading `/memories/session/loop/context.md`
 2. **Read** subtask and acceptance criteria from plan
 3. **Research** existing patterns in codebase
 4. **Implement** matching project conventions
 5. **Verify** errors check + tests pass
 6. **Record pattern** — If you learned something useful, capture it (see Learning from Implementation)
-7. **Update** — Mark `[x]` in `/memories/session/loop/{task}/plan.md`
+7. **Update** — Mark `[x]` in `/memories/session/loop/plan.md`
 
 ## When to Record Patterns
 
@@ -104,7 +105,7 @@ Do NOT work around blockers silently—this creates stalls the loop can't detect
 
 Record only non-obvious insights. **Max 15 lines total.**
 
-**Write to `/memories/session/loop/{task}/learnings/NNN-implement-pattern.md`:**
+**Write to `/memories/session/loop/learnings/NNN-implement-pattern.md`:**
 
 ```markdown
 # Pattern [NNN]: [One-line description]

@@ -2,6 +2,7 @@
 name: LoopReview
 description: 'Reviews implemented code for quality, correctness, and coherence with prior decisions.'
 argument-hint: 'mode (scaffold/batch/final), subtask IDs to review (for batch mode)'
+tools: [vscode/memory, execute, read, agent, edit, search, web, todo]
 user-invocable: false
 disable-model-invocation: true
 ---
@@ -18,7 +19,7 @@ The orchestrator dispatches you with:
 - **Mode**: `scaffold`, `batch`, or `final`
 - **Subtasks**: The specific subtask IDs to review (for batch mode)
 
-**First step**: Read `/memories/session/loop/{task}/context.md` (path provided by orchestrator) for synthesized state (prior decisions, anti-patterns). Also read `/memories/session/loop/{task}/learnings/` for any recent decisions not yet in context.md.
+**First step**: Read `/memories/session/loop/context.md` for synthesized state (prior decisions, anti-patterns). Also read `/memories/session/loop/learnings/` for any recent decisions not yet in context.md.
 
 Do NOT call other agents. Work with the context file + learnings folder.
 
@@ -37,10 +38,10 @@ Focus on:
 
 ## Shared Memory
 
-**Read first**: `/memories/session/loop/{task}/context.md` for prior decisions and anti-patterns
-**Read**: `/memories/session/loop/{task}/plan.md` for acceptance criteria
-**Write**: `/memories/session/loop/{task}/report.md` (final mode only)
-**Write**: `/memories/session/loop/{task}/learnings/NNN-review-anti-pattern.md` (when issues detected)
+**Read first**: `/memories/session/loop/context.md` for prior decisions and anti-patterns
+**Read**: `/memories/session/loop/plan.md` for acceptance criteria
+**Write**: `/memories/session/loop/report.md` (final mode only)
+**Write**: `/memories/session/loop/learnings/NNN-review-anti-pattern.md` (when issues detected)
 
 ## Human Consultation
 
@@ -140,7 +141,7 @@ npm run dev  # or equivalent — run as background process
 
 ## Common Steps (All Modes)
 
-1. Read `/memories/session/loop/{task}/context.md` + any inline `Decisions`
+1. Read `/memories/session/loop/context.md` + any inline `Decisions`
 2. **Run verification**: `npm run build && npm test && npm run lint` (adapt to project)
 3. Check coherence with prior decisions
 
@@ -193,7 +194,7 @@ Holistic review + write report.
 
 - Run full verification (build, all tests, E2E)
 - Check all decisions followed or explicitly superseded
-- Write `/memories/session/loop/{task}/report.md`:
+- Write `/memories/session/loop/report.md`:
 
 ```markdown
 # Implementation Report
@@ -258,7 +259,7 @@ Capture issues as learnings so they don't recur.
 **Only skip when:**
 - An existing learning already covers this exact issue type
 
-**Write to `/memories/session/loop/{task}/learnings/NNN-review-anti-pattern.md`:**
+**Write to `/memories/session/loop/learnings/NNN-review-anti-pattern.md`:**
 
 ```markdown
 # Anti-Pattern [NNN]: [Brief description]

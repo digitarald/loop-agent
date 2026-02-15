@@ -19,48 +19,20 @@ Orchestrate engineering tasks through a self-correcting loop with shared memory.
 
 ## Shared Memory Structure
 
-Each task gets its own folder under `/memories/session/loop/` with an auto-incremented, human-readable ID:
+All loop state lives in a single flat folder:
 
 ```
 /memories/session/loop/
-├── 001-add-user-auth/    # First task
-│   ├── context.md        # Current context (LoopGather writes, subagents read)
-│   ├── plan.md           # Task breakdown + progress
-│   ├── loop-state.md     # Meta-loop status (iteration, health)
-│   ├── report.md         # Final summary
-│   └── learnings/        # Decisions + anti-patterns
-│       ├── 001-*.md
-│       └── ...
-├── 002-fix-payment-bug/  # Second task
-│   └── ...
+├── context.md        # Current context (LoopGather writes, subagents read)
+├── plan.md           # Task breakdown + progress
+├── loop-state.md     # Meta-loop status (iteration, health)
+├── report.md         # Final summary
+└── learnings/        # Decisions + anti-patterns
+    ├── 001-*.md
+    └── ...
 ```
 
-**Task ID format**: `NNN-slug` where:
-- `NNN` = 3-digit zero-padded sequential number (001, 002, ...)
-- `slug` = kebab-case summary from request (max 40 chars, 3-5 keywords)
-
-**Your protocol**: NEVER read files directly. Resolve task from user message, call LoopGather with the task path, then dispatch subagents. Subagents read the active task's `context.md` themselves—you don't pass context.
-
-## Task Resolution
-
-Before any action, determine which task to work on:
-
-1. **Parse user message** for task hints:
-   - Explicit ID: "continue 002-fix-bug" → `/memories/session/loop/002-fix-bug/`
-   - Partial match: "resume the auth task" → scan for `*auth*` in `/memories/session/loop/`
-   - Descriptive: "keep working on dark mode" → scan for matching slug
-
-2. **If match found**: Use that task folder, pass path to LoopGather
-
-3. **If `/memories/session/loop/` is empty or doesn't exist**: Treat as new task request—proceed directly to Initialize
-
-4. **If no match or ambiguous** (and tasks exist):
-   - Scan `/memories/session/loop/` for all `NNN-*` folders
-   - Read first line of each `plan.md` for status
-   - Present list to user: `[NNN-slug] Status: DRAFT|APPROVED|IN_PROGRESS|COMPLETE`
-   - Ask: "Which task should I continue, or describe a new task?"
-   - If user picks existing → use that task
-   - If user describes new work → create new task (see Initialize)
+**Your protocol**: NEVER read files directly. Call LoopGather to synthesize context, then dispatch subagents. Subagents read `/memories/session/loop/context.md` themselves—you don't pass context.
 
 ## Workflow Diagram
 
@@ -106,20 +78,14 @@ flowchart TD
 
 ### 1. Initialize
 
-When Task Resolution determines a **new task** is needed:
+If `/memories/session/loop/` doesn't exist or is empty, create the folder structure:
 
-1. **Scan for existing tasks**: List `/memories/session/loop/` to find existing `NNN-*` folders
-2. **Compute next ID**: Increment highest existing number (or start at 001)
-3. **Generate slug**: Extract 3-5 keywords from user request, kebab-case, max 40 chars
-4. **Create task folder**: `/memories/session/loop/NNN-slug/`
-
-**New task structure:**
 ```
-/memories/session/loop/NNN-slug/
+/memories/session/loop/
 ├── context.md      (empty, LoopGather will populate)
 ├── plan.md         (empty, LoopPlan will populate)
 ├── loop-state.md   (initialized below)
-├── learnings/      (empty folder, version controlled)
+├── learnings/      (empty folder)
 ```
 
 **Version control policy**: The `learnings/` folder is committed to preserve reasoning across sessions. Ephemeral files (`context.md`, `loop-state.md`) are excluded—add them to `.gitignore` if desired.
@@ -131,37 +97,28 @@ Initialize `loop-state.md`:
 **Status**: INITIALIZING
 ```
 
-**Resuming a task**: Handled by Task Resolution—user message is parsed for task hints, or user picks from list. Once resolved:
-1. Call LoopGather with the task path to reload context
-2. Continue from where that task left off
-
-**Listing tasks**: Handled by Task Resolution when no clear match. Or when user explicitly asks:
-1. Scan `/memories/session/loop/` for all `NNN-*` folders
-2. Read each task's `plan.md` first line for status
-3. Display: `[NNN-slug] Status: DRAFT|APPROVED|IN_PROGRESS|COMPLETE`
+**Resuming**: If `/memories/session/loop/` already has state, skip initialization. Call LoopGather to reload context and continue from where the task left off.
 
 ### 2. Gather Context
 
 Before any planning, call `loop-gather` to:
 - Check for existing state (resuming?)
 - Synthesize prior decisions
-- Write context to `{task}/context.md`
+- Write context to `/memories/session/loop/context.md`
 
-Pass the resolved task path to LoopGather. It returns `Phase` and `ready_subtasks` to you. Full context is in `{task}/context.md` for subagents to read directly.
+Call LoopGather. It returns `Phase` and `ready_subtasks` to you. Full context is in `/memories/session/loop/context.md` for subagents to read directly.
 
 ### 3. Planning Loop
 
 ```
-LoopGather → writes {task}/context.md, returns {phase, ready_subtasks}
-LoopPlan + request → reads {task}/context.md itself, returns {status, questions?} + writes plan.md + writes learnings/*.md for decisions
+LoopGather → writes context.md, returns {phase, ready_subtasks}
+LoopPlan + request → reads context.md itself, returns {status, questions?} + writes plan.md + writes learnings/*.md for decisions
   ├─ if NEEDS_CLARIFICATION → Orchestrator asks user, re-dispatches LoopPlan with Clarifications
   └─ if DRAFT → continue
-LoopPlanReview → reads {task}/context.md + learnings/*.md itself, returns verdict
+LoopPlanReview → reads context.md + learnings/*.md itself, returns verdict
 ```
 
 **No refresh between Plan and PlanReview.** LoopPlan writes decisions directly to `learnings/`. LoopPlanReview reads them directly if needed.
-
-**Note**: `{task}` refers to the resolved task folder path (e.g., `/memories/session/loop/001-add-user-auth/`).
 
 **On NEEDS_CLARIFICATION:**
 1. LoopPlan returns `Status: NEEDS_CLARIFICATION` with `Questions: [list]`
@@ -206,11 +163,11 @@ LoopPlanReview → reads {task}/context.md + learnings/*.md itself, returns verd
 **Phase detection**: LoopGather returns `Phase: SCAFFOLD` when any `scaffold: true` subtasks are incomplete.
 
 ```
-LoopGather → writes {task}/context.md, returns {phase: SCAFFOLD, ready_subtasks: [scaffold tasks]}
-[PARALLEL] LoopScaffold + task:A → reads {task}/context.md, returns output1, writes learnings/*.md if decisions made
-[PARALLEL] LoopScaffold + task:B → reads {task}/context.md, returns output2
+LoopGather → writes context.md, returns {phase: SCAFFOLD, ready_subtasks: [scaffold tasks]}
+[PARALLEL] LoopScaffold + task:A → reads context.md, returns output1, writes learnings/*.md if decisions made
+[PARALLEL] LoopScaffold + task:B → reads context.md, returns output2
 [WAIT ALL]
-LoopReview + mode:scaffold → reads {task}/context.md + scaffold files + learnings/*.md directly, returns verdict
+LoopReview + mode:scaffold → reads context.md + scaffold files + learnings/*.md directly, returns verdict
 LoopRollback + operation:checkpoint + label:scaffold → checkpoint SHA
 ```
 
@@ -249,17 +206,17 @@ For each batch:
 
 ```
 # Step 1: Gather
-LoopGather → writes {task}/context.md (includes ready_subtasks: [1.1, 1.3, 2.2])
+LoopGather → writes context.md (includes ready_subtasks: [1.1, 1.3, 2.2])
 **📋 TODO:** Mark ready_subtasks as `in-progress`
 
 # Step 2: Implement (parallel)
-[PARALLEL] LoopImplement + subtask:1.1 → reads {task}/context.md, returns output1, writes learnings/*.md if fix patterns found
-[PARALLEL] LoopImplement + subtask:1.3 → reads {task}/context.md, returns output2
-[PARALLEL] LoopImplement + subtask:2.2 → reads {task}/context.md, returns output3
+[PARALLEL] LoopImplement + subtask:1.1 → reads context.md, returns output1, writes learnings/*.md if fix patterns found
+[PARALLEL] LoopImplement + subtask:1.3 → reads context.md, returns output2
+[PARALLEL] LoopImplement + subtask:2.2 → reads context.md, returns output3
 [WAIT ALL]
 
 # Step 3: Review (REQUIRED before monitor)
-LoopReview + mode:batch + subtasks:[1.1, 1.3, 2.2] → reads {task}/context.md + learnings/*.md, returns verdict, writes anti-patterns
+LoopReview + mode:batch + subtasks:[1.1, 1.3, 2.2] → reads context.md + learnings/*.md, returns verdict, writes anti-patterns
 **📋 TODO:** Mark APPROVED subtasks as `completed`
 
 # Step 4: Monitor (requires review verdict)
@@ -304,7 +261,7 @@ When `loop-monitor` returns non-PROGRESSING:
 When all subtasks complete:
 1. **📋 TODO:** Verify all todos are `completed`
 2. Call `loop-review` (final mode)
-3. Call `loop-curate` with task path — consolidates learnings before commit
+3. Call `loop-curate` — consolidates learnings before commit
 4. Present `/memories/session/loop/report.md` to user
 5. Await feedback
 
@@ -312,9 +269,9 @@ When all subtasks complete:
 
 ## Orchestrator Protocol
 
-**NEVER read files directly.** All context goes through LoopGather → `{task}/context.md`.
+**NEVER read files directly.** All context goes through LoopGather → `/memories/session/loop/context.md`.
 
-**Stay thin:** You dispatch, you don't hold context. Subagents read `{task}/context.md` themselves.
+**Stay thin:** You dispatch, you don't hold context. Subagents read `/memories/session/loop/context.md` themselves.
 
 **When to call LoopGather:**
 - ✅ Task initialization (first gather)
@@ -325,14 +282,14 @@ When all subtasks complete:
 - ❌ For feedback-only revisions (no codebase changes)
 
 **Dispatch pattern:**
-1. Call `LoopGather` when required (see above) → returns {phase, ready_subtasks}, writes `{task}/context.md`
-2. Dispatch target agent with task identifiers + any feedback
-3. Agent reads `{task}/context.md` for full context, writes to `learnings/` directly if needed
+1. Call `LoopGather` when required (see above) → returns {phase, ready_subtasks}, writes `context.md`
+2. Dispatch target agent with subtask identifiers + any feedback
+3. Agent reads `/memories/session/loop/context.md` for full context, writes to `learnings/` directly if needed
 4. Review agents read `learnings/` directly for decision/anti-pattern context
 
 **Subagent retry:** If a subagent call fails (no output, error, timeout), retry immediately up to 2 times. Only after 3 consecutive failures, treat as a real failure and proceed with normal error handling (STALLED/BLOCKED logic).
 
-**Never read**: `plan.md`, `loop-state.md`, `context.md`, `learnings/*.md` (exception: read `plan.md` first line during Task Resolution to show status)
+**Never read**: `plan.md`, `loop-state.md`, `context.md`, `learnings/*.md`
 
 ## Parallel Dispatch Protocol
 
@@ -348,10 +305,10 @@ When all subtasks complete:
 **CRITICAL: LoopReview → LoopMonitor ordering is enforced.** LoopMonitor will return `BLOCKED: Missing batch review` if called without review verdict. This prevents implementations from shipping without quality checks.
 
 **Pattern:**
-1. Call LoopGather once → get ready_subtasks list, {task}/context.md is written
-2. Dispatch all ready subtasks to LoopImplement in parallel (each reads {task}/context.md, writes learnings/ if needed)
+1. Call LoopGather once → get ready_subtasks list, context.md is written
+2. Dispatch all ready subtasks to LoopImplement in parallel (each reads context.md, writes learnings/ if needed)
 3. Wait for all to complete
-4. **Call LoopReview once for the batch** (reads {task}/context.md + learnings/) — MUST happen before monitor
+4. **Call LoopReview once for the batch** (reads context.md + learnings/) — MUST happen before monitor
 5. Call LoopMonitor once with **review verdict** + aggregated results
 
 **Dependency awareness:** Only subtasks listed in ready_subtasks can be parallelized. Subtasks with unmet `depends_on` must wait until dependencies complete.
@@ -366,4 +323,4 @@ When all subtasks complete:
 - Do NOT ignore LoopMonitor warnings
 - Escalate after 2 failed recovery attempts
 - Use `vscode/askQuestions` when human judgment needed for recovery strategy
-- Your edit tools are ONLY for creating the `/memories/session/loop/{task}/` folder structure during initialization
+- Your edit tools are ONLY for creating the `/memories/session/loop/` folder structure during initialization

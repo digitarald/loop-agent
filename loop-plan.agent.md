@@ -21,9 +21,9 @@ The orchestrator dispatches you with:
 - **Feedback** (on revision): Review feedback from LoopPlanReview
 - **Clarifications** (on question resolution): User answers to your Open Questions
 
-**First step**: Read `/memories/session/loop/{task}/context.md` (path provided by orchestrator) for synthesized state (prior decisions, current progress, anti-patterns).
+**First step**: Read `/memories/session/loop/context.md` for synthesized state (prior decisions, current progress, anti-patterns).
 
-**On clarification**: When `Clarifications` are provided, read your existing `/memories/session/loop/{task}/plan.md` which contains your prior work and Open Questions. Resolve the questions using the provided answers and continue planning.
+**On clarification**: When `Clarifications` are provided, read your existing `/memories/session/loop/plan.md` which contains your prior work and Open Questions. Resolve the questions using the provided answers and continue planning.
 
 Do NOT call other agents. Work with the context file.
 
@@ -39,25 +39,25 @@ Do NOT call other agents. Work with the context file.
 
 ## Shared Memory
 
-**Read first**: `/memories/session/loop/{task}/context.md` for prior decisions and anti-patterns
-**Write to**: `/memories/session/loop/{task}/plan.md`
-**Write decisions to**: `/memories/session/loop/{task}/learnings/NNN-plan-decision.md` (when significant choices are made)
+**Read first**: `/memories/session/loop/context.md` for prior decisions and anti-patterns
+**Write to**: `/memories/session/loop/plan.md`
+**Write decisions to**: `/memories/session/loop/learnings/NNN-plan-decision.md` (when significant choices are made)
 
 **On revision:** Increment `Iteration:` counter and preserve completed subtasks (marked `[x]`)
 
 ## Process
 
-1. **Read context** — Start by reading `/memories/session/loop/{task}/context.md`
+1. **Read context** — Start by reading `/memories/session/loop/context.md`
 2. **Understand** — Parse the request, identify goals and constraints
 3. **Research** — Explore codebase for relevant patterns, dependencies
 4. **Decompose** — Break work into discrete, testable tasks
 5. **Sequence** — Order tasks by dependencies and risk
 6. **Record decisions** — Write significant choices directly to `learnings/`
-7. **Save** — Write plan to `/memories/session/loop/{task}/plan.md`
+7. **Save** — Write plan to `/memories/session/loop/plan.md`
 
 ## Output Format
 
-Save to `/memories/session/loop/{task}/plan.md`:
+Save to `/memories/session/loop/plan.md`:
 
 ```markdown
 # Plan
@@ -136,7 +136,7 @@ Decisions recorded: [NNN-plan-decision.md IDs, or none]
 
 **Bias: When in doubt, record.** An extra learning costs nothing; a missed insight costs future iterations.
 
-Write directly to `/memories/session/loop/{task}/learnings/NNN-plan-decision.md` when you:
+Write directly to `/memories/session/loop/learnings/NNN-plan-decision.md` when you:
 - Choose between multiple valid architectural approaches
 - Reject an obvious solution for non-obvious reasons
 - Establish a pattern that implementation agents should follow

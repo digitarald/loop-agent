@@ -31,8 +31,7 @@ Loop uses a **flat, single-level hierarchy**: the orchestrator calls subagents, 
 
 ```mermaid
 flowchart TB
-    User([User]) --> Resolve[Task Resolution]
-    Resolve --> Loop[Loop Orchestrator]
+    User([User]) --> Loop[Loop Orchestrator]
     
     Loop --> LG[LoopGather]
     Loop --> LM[LoopMonitor]
@@ -69,27 +68,20 @@ flowchart TB
 
 ### Shared Memory Structure
 
-Each task gets its own folder under `/memories/session/loop/` with an auto-incremented, human-readable ID:
+All loop state lives in a single flat folder:
 
 ```
 /memories/session/loop/
-├── 001-add-user-auth/    # First task
-│   ├── context.md        # Synthesized context for agents
-│   ├── plan.md           # Task breakdown + progress checkboxes
-│   ├── loop-state.md     # Meta-loop status (iteration, health)
-│   ├── report.md         # Final implementation summary
-│   └── learnings/        # Reasoning trail (decisions + anti-patterns)
-│       ├── 001-plan-decision.md
-│       ├── 002-scaffold-decision.md
-│       ├── 003-implement-pattern.md
-│       └── 004-review-anti-pattern.md
-├── 002-fix-payment-bug/  # Second task
-│   └── ...
+├── context.md        # Synthesized context for agents
+├── plan.md           # Task breakdown + progress checkboxes
+├── loop-state.md     # Meta-loop status (iteration, health)
+├── report.md         # Final implementation summary
+└── learnings/        # Reasoning trail (decisions + anti-patterns)
+    ├── 001-plan-decision.md
+    ├── 002-scaffold-decision.md
+    ├── 003-implement-pattern.md
+    └── 004-review-anti-pattern.md
 ```
-
-**Task ID format**: `NNN-slug` where:
-- `NNN` = 3-digit zero-padded sequential number (001, 002, ...)
-- `slug` = kebab-case summary from request (max 40 chars, 3-5 keywords)
 
 **Key principle**: Agents write to files, orchestrator reads nothing. Context synthesis is delegated to `LoopGather`. The `learnings/` folder is version controlled to preserve reasoning across sessions.
 
@@ -97,16 +89,9 @@ Each task gets its own folder under `/memories/session/loop/` with an auto-incre
 
 ## How It Works
 
-### Task Resolution
+### Initialization
 
-Before any action, the orchestrator determines which task to work on:
-
-1. **Parse user message** for task hints (e.g., "continue 002-fix-bug", "resume the auth task")
-2. **If match found**: Use that task folder
-3. **If no match or ambiguous**: List available tasks with status, ask user to pick or describe new work
-4. **If no tasks exist**: Create new task
-
-This replaces file-based state tracking—the orchestrator infers context from the conversation.
+If `/memories/session/loop/` doesn't exist, the orchestrator creates it with empty state files. If it already has state, `LoopGather` resumes from where the task left off.
 
 ### Phase 1: Planning with Coherence Checks
 
@@ -119,18 +104,13 @@ sequenceDiagram
     participant LoopPlanReview
     participant Todo as Todo Tool
     
-    User->>Orch: Request (may include task hint)
+    User->>Orch: Request
     
-    alt Task hint found
-        Orch->>Orch: Resolve to /memories/session/loop/NNN-slug/
-    else No match or ambiguous
-        Orch->>User: List tasks, ask which to continue
-        User->>Orch: Pick task or describe new
-    else New task
-        Orch->>Orch: Create /memories/session/loop/NNN-slug/
+    alt New task
+        Orch->>Orch: Create /memories/session/loop/
     end
     
-    Orch->>LoopGather: Get current state (task path)
+    Orch->>LoopGather: Get current state
     LoopGather-->>Orch: phase, ready_subtasks (writes context.md)
     
     Orch->>LoopPlan: Plan with context
@@ -290,9 +270,9 @@ The orchestrator **never reads files directly**:
 
 ```mermaid
 flowchart LR
-    A[Orchestrator calls LoopGather] --> B["LoopGather reads /memories/session/loop/task-folder/"]
+    A[Orchestrator calls LoopGather] --> B["LoopGather reads /memories/session/loop/"]
     B --> C[LoopGather returns context summary]
-    C --> D[Orchestrator passes context to LoopPlan]
+    C --> D[Orchestrator dispatches subagents]
     
     style A fill:#e1f5ff
     style B fill:#fff4e1
@@ -338,7 +318,7 @@ LoopMonitor (requires review verdict) → status
 - Multiple `LoopScaffold` calls (if plan has independent scaffold tasks)
 
 **Sequential operations (shared state):**
-- `LoopGather` — reads shared state from active task folder
+- `LoopGather` — reads shared state from `/memories/session/loop/`
 - `LoopReview` — needs all implementations + learnings (MUST run before monitor)
 - `LoopMonitor` — needs review verdict + batch results (enforces review requirement)
 - **Todo updates** — coordinated status tracking
@@ -373,16 +353,16 @@ This lets users see orchestrator progress without reading log files or memory st
 
 | Agent | Role | Tools | Reads | Writes |
 |-------|------|-------|-------|--------|
-| **Loop** | Orchestrator | agent, read, search, todo, vscode/askQuestions, vscode/memory | plan.md first line (for task list status) | {task}/loop-state.md (init only) |
-| **LoopGather** | Context synthesizer | read, search, vscode/memory | {task}/plan.md, {task}/learnings/* | {task}/context.md |
-| **LoopMonitor** | Stall detector | search, read, vscode/memory | {task}/loop-state.md | {task}/loop-state.md |
-| **LoopPlan** | Planner | read, search, github/web_search, vscode/memory | codebase, {task}/context.md | {task}/plan.md, {task}/learnings/NNN-plan-decision.md |
-| **LoopPlanReview** | Plan reviewer | read, search, github/web_search, vscode/memory | {task}/plan.md, {task}/context.md, {task}/learnings/* | {task}/learnings/NNN-plan-review-rejection.md |
-| **LoopScaffold** | Scaffolder | all | {task}/plan.md, {task}/context.md, codebase | {task}/plan.md (checkboxes), code files, {task}/learnings/NNN-scaffold-decision.md |
-| **LoopImplement** | Implementer | all | {task}/plan.md, {task}/context.md, codebase | {task}/plan.md (checkboxes), code files, {task}/learnings/NNN-implement-pattern.md |
-| **LoopReview** | Code reviewer | all | {task}/plan.md, {task}/context.md, {task}/learnings/*, codebase | {task}/report.md (final mode), {task}/learnings/NNN-review-anti-pattern.md |
-| **LoopRollback** | Checkpoint/recovery | execute, read, vscode/memory | git history, {task}/plan.md | {task}/learnings/NNN-rollback-anti-pattern.md, {task}/plan.md |
-| **LoopCurate** | Learnings curator | vscode/memory | {task}/learnings/* | {task}/learnings/* (merged/pruned) |
+| **Loop** | Orchestrator | agent, read, search, todo, vscode/askQuestions, vscode/memory | plan.md first line (for status) | loop-state.md (init only) |
+| **LoopGather** | Context synthesizer | read, search, vscode/memory | plan.md, learnings/* | context.md |
+| **LoopMonitor** | Stall detector | search, read, vscode/memory | loop-state.md | loop-state.md |
+| **LoopPlan** | Planner | read, search, github/web_search, vscode/memory | codebase, context.md | plan.md, learnings/NNN-plan-decision.md |
+| **LoopPlanReview** | Plan reviewer | read, search, github/web_search, vscode/memory | plan.md, context.md, learnings/* | learnings/NNN-plan-review-rejection.md |
+| **LoopScaffold** | Scaffolder | all | plan.md, context.md, codebase | plan.md (checkboxes), code files, learnings/NNN-scaffold-decision.md |
+| **LoopImplement** | Implementer | all | plan.md, context.md, codebase | plan.md (checkboxes), code files, learnings/NNN-implement-pattern.md |
+| **LoopReview** | Code reviewer | all | plan.md, context.md, learnings/*, codebase | report.md (final mode), learnings/NNN-review-anti-pattern.md |
+| **LoopRollback** | Checkpoint/recovery | execute, read, vscode/memory | git history, plan.md | learnings/NNN-rollback-anti-pattern.md, plan.md |
+| **LoopCurate** | Learnings curator | vscode/memory | learnings/* | learnings/* (merged/pruned) |
 
 **Model tier routing:** Agents are assigned to cost-appropriate models. Cheap/fast models (Gemini 3 Flash, Claude Haiku 4.5, GLM 4.7) handle context gathering, implementation, monitoring, and rollback. Expensive models (GPT-5.2-Codex) handle planning where reasoning quality matters most.
 
@@ -411,29 +391,17 @@ Build a REST API with JWT authentication
 ```
 
 The orchestrator will:
-1. Resolve task from user message (or list existing tasks and ask)
-2. Initialize `/memories/session/loop/NNN-slug/` structure for a new task
-3. Call `LoopGather` with the task path to check for existing state
-4. Delegate to `LoopPlan` → `LoopPlanReview`
-5. **Create todo items** for all subtasks (tracked in VS Code UI throughout execution)
-6. Scaffold architecture with `LoopScaffold`
-7. Implement in parallel batches with `LoopImplement` (todos update: in-progress → completed)
-8. Monitor for stalls with `LoopMonitor`
-9. Generate final report with `LoopReview`
-10. Curate learnings with `LoopCurate` before commit
+1. Initialize `/memories/session/loop/` structure (or resume if state exists)
+2. Call `LoopGather` to check for existing state
+3. Delegate to `LoopPlan` → `LoopPlanReview`
+4. **Create todo items** for all subtasks (tracked in VS Code UI throughout execution)
+5. Scaffold architecture with `LoopScaffold`
+6. Implement in parallel batches with `LoopImplement` (todos update: in-progress → completed)
+7. Monitor for stalls with `LoopMonitor`
+8. Generate final report with `LoopReview`
+9. Curate learnings with `LoopCurate` before commit
 
-All reasoning is preserved in `/memories/session/loop/{task}/learnings/` for future reference.
-
-### Task Management
-
-**Continue a task:** Include task hints in your message:
-- "Continue 002-fix-payment-bug"
-- "Resume the auth task" 
-- "Keep working on dark mode"
-
-**List tasks:** Say "list tasks" or "show tasks" to see all task folders with their status
-
-**New task:** If no hint matches, the orchestrator will show existing tasks and ask whether to continue one or start fresh
+All reasoning is preserved in `/memories/session/loop/learnings/` for future reference.
 
 ---
 
